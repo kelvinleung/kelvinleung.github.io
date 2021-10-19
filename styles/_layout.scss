@@ -1,0 +1,13 @@
+.container {
+  min-height: 100vh;
+  padding: 4rem 0 0;
+  display: flex;
+}
+
+.main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+  flex: 1;
+  display: flex;
+}

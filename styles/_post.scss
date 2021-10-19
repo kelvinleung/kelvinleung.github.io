@@ -1,0 +1,13 @@
+@import "./variables";
+
+.post-container {
+  line-height: 1.8;
+  a {
+    color: $primary-color;
+    &:hover,
+    &:active,
+    &:focus {
+      text-decoration: underline;
+    }
+  }
+}

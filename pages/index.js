@@ -1,9 +1,8 @@
-import Head from "next/head";
-import NavBar from "components/navbar";
-import { getSortedPostsData } from "lib/posts";
+import Link from "next/link";
+import { getAllPosts } from "lib/posts";
 
 export async function getStaticProps() {
-  const allPostData = getSortedPostsData();
+  const allPostData = await getAllPosts();
   return {
     props: {
       allPostData,
@@ -13,27 +12,20 @@ export async function getStaticProps() {
 
 export default function Home({ allPostData }) {
   return (
-    <div className="container">
-      <Head>
-        <title>{`Kelvin's Blog`}</title>
-        <meta name="description" content="Kelvin's blog" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-
-      <NavBar />
-      <main className="main">
-        <ul className="main-posts-list">
-          {allPostData.map(({ id, title, date, desc }) => (
-            <li key={id}>
-              <article>
+    <ul className="main-posts-list">
+      {allPostData.map(({ id, title, date, desc }) => (
+        <li key={id}>
+          <article>
+            <Link href={`/post/${id}`}>
+              <a>
                 <h2>{title}</h2>
-                <div className="posts-list-date">{date}</div>
-                <p>{desc}</p>
-              </article>
-            </li>
-          ))}
-        </ul>
-      </main>
-    </div>
+              </a>
+            </Link>
+            <div className="posts-list-date">{date}</div>
+            <p>{desc}</p>
+          </article>
+        </li>
+      ))}
+    </ul>
   );
 }
