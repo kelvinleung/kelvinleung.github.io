@@ -1,6 +1,7 @@
 @use "./layout";
 @use "./post";
 @use "./index";
+@use "./prism";
 @use "./components/navbar";
 @import "./variables";
 
@@ -23,6 +24,7 @@ a {
   text-decoration: none;
 }
 
-ul {
+ul,
+ol {
   list-style: none;
 }

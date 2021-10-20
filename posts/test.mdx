@@ -1,120 +1,76 @@
 ---
-title: "TypeScript 是如何工作的"
+title: "JavaScript 中的树型数据结构"
 date: "2020-01-01"
-desc: "TypeScript 是一门基于 JavaScript 拓展的语言，它是 JavaScript 的超集，并且给 JavaScript 添加了静态类型检查系统。TypeScript 能让我们在开发时发现程序中类型定义不一致的地方，及时消除隐藏的风险，大大增强了代码的可读性以及可维护性。相信大家对于如何在项目中使用 TypeScript 已经轻车熟路，本文就来探讨简单探讨一下 TypeScript 是如何工作的，以及有哪些工具帮助它实现了这个目标。"
+desc: "树有很多变体(如堆、 BST 等) ，可用于解决与调度、图像处理、数据库等相关的问题。许多复杂的问题可能看起来和树没有关系，但是实际上可以表示为一个问题。我们还将讨论这些问题(在本系列后面的部分中) ，看看树是如何使看似复杂的问题更容易理解和解决的。"
 ---
 
-# vue-next [![npm](https://img.shields.io/npm/v/vue/next.svg)](https://www.npmjs.com/package/vue/v/next) [![build status](https://github.com/vuejs/vue-next/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/vuejs/vue-next/actions/workflows/ci.yml)
+# 引言
 
-This is the repository for Vue 3.0.
+为二叉树实现一个节点是非常简单的。
 
-## Quickstart
+```js
+function Node(value) {
+  this.value = value;
+  this.left = null;
+  this.right = null;
+}
+// usage
+const root = new Node(2);
+root.left = new Node(1);
+root.right = new Node(3);
+```
 
-- Via CDN: `<script src="https://unpkg.com/vue@next"></script>`
-- In-browser playground on [Codepen](https://codepen.io/yyx990803/pen/OJNoaZL)
-- Scaffold via [Vite](https://github.com/vitejs/vite):
+因此，[这几行代码](http://www.google.com)将为我们创建一个二叉树，它看起来像这样：
 
-  ```bash
-  # npm 6.x
-  npm init vite@latest my-vue-app --template vue
-  # npm 7+, extra double-dash is needed:
-  npm init vite@latest my-vue-app -- --template vue
-  # yarn
-  yarn create vite my-vue-app --template vue
-  ```
+```js
+           2
+        /      \
+       /         \
+     1            3
+   /   \        /    \
+null  null   null   null
+```
 
-- Scaffold via [vue-cli](https://cli.vuejs.org/):
+这很简单。现在，我们如何使用这个呢？
 
-  ```bash
-  npm install -g @vue/cli # OR yarn global add @vue/cli
-  vue create hello-vue3
-  # select vue 3 preset
-  ```
+# 遍历
 
-## Changes from Vue 2
+> 让我们从试图遍历这些连接的树节点（或整颗树）开始。就像我们可以迭代一个数组一样，如果我们也可以“迭代”树节点就更好了。然而，树并不是像数组那样的线性数据结构，因此遍历这些数据结构的方法不止一种。我们可以将遍历方法大致分为以下几类:
 
-Please consult the [Migration Guide](https://v3.vuejs.org/guide/migration/introduction.html).
+- 广度优先遍历
+- 深度优先遍历
 
-Also note: Vue 3 does not support IE11 ([RFC](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0038-vue3-ie11-support.md) | [Discussion](https://github.com/vuejs/rfcs/discussions/296)).
+# 广度优先搜索/遍历（BFS）
 
-## Supporting Libraries
+在这种方法中，我们逐层遍历树。我们将从根开始，然后覆盖所有的子级，以及覆盖所有的二级子级，以此类推。例如，对于上面的树，遍历会得到如下结果：
 
-All of our official libraries and tools now support Vue 3, but most of them are still in beta status and distributed under the `next` dist tag on NPM. **We are planning to stabilize and switch all projects to use the `latest` dist tag in early 2021.**
+```js
+2, 1, 3;
+```
 
-### Vue CLI
+下面是一个略微复杂的树的例子，使得这个更容易理解：
 
-As of v4.5.0, `vue-cli` now provides built-in option to choose Vue 3 preset when creating a new project. You can upgrade `vue-cli` and run `vue create` to create a Vue 3 project today.
+要实现这种形式的遍历，我们可以使用一个队列（先进先出）数据结构。下面是整个算法的样子：
 
-### Vue Router
+1. 初始化一个包含`root`的队列
+2. 从队列中删除第一项
+3. 将弹出项的左右子项推入队列
+4. 重复步骤 2 和 3，直到队列为空
 
-Vue Router 4.0 provides Vue 3 support and has a number of breaking changes of its own. Check out its [Migration Guide](https://next.router.vuejs.org/guide/migration/) for full details.
+下面是这个算法实现后的样子：
 
-- [![beta](https://img.shields.io/npm/v/vue-router/next.svg)](https://www.npmjs.com/package/vue-router/v/next)
-- [GitHub](https://github.com/vuejs/vue-router-next)
-- [RFCs](https://github.com/vuejs/rfcs/pulls?q=is%3Apr+is%3Amerged+label%3Arouter)
+```js
+function walkBFS(root) {
+  if (root === null) return;
 
-### Vuex
+  const queue = [root];
+  while (queue.length) {
+    const item = queue.shift();
+    // do something
+    console.log(item);
 
-Vuex 4.0 provides Vue 3 support with largely the same API as 3.x. The only breaking change is [how the plugin is installed](https://github.com/vuejs/vuex/tree/4.0#breaking-changes).
-
-- [![beta](https://img.shields.io/npm/v/vuex/next.svg)](https://www.npmjs.com/package/vuex/v/next)
-- [GitHub](https://github.com/vuejs/vuex/tree/4.0)
-
-### Devtools Extension
-
-We are working on a new version of the Devtools with a new UI and refactored internals to support multiple Vue versions. The new version is currently in beta and only supports Vue 3 (for now). Vuex and Router integration is also work in progress.
-
-- For Chrome: [Install from Chrome web store](https://chrome.google.com/webstore/detail/vuejs-devtools/ljjemllljcmogpfapbkkighbhhppjdbg?hl=en)
-
-  - Note: the beta channel may conflict with the stable version of devtools so you may need to temporarily disable the stable version for the beta channel to work properly.
-
-- For Firefox: [Download the signed extension](https://github.com/vuejs/vue-devtools/releases/tag/v6.0.0-beta.2) (`.xpi` file under Assets)
-
-### IDE Support
-
-It is recommended to use [VSCode](https://code.visualstudio.com/). There are currently two viable extensions for Single-File Components (SFCs) support:
-
-- [Vetur](https://marketplace.visualstudio.com/items?itemName=octref.vetur) (recommended if you are used to Vetur features)
-- [Volar](https://marketplace.visualstudio.com/items?itemName=johnsoncodehk.volar) (recommended if using TypeScript with SFCs, or `<script setup>` syntax)
-
-### TypeScript Support
-
-- All Vue 3 packages ship with types.
-- [vue-tsc](https://github.com/johnsoncodehk/vue-tsc) perform TypeScript type checks / diagnostics on Vue SFCs via the command line.
-- [vue-dts-gen](https://github.com/egoist/vue-dts-gen): generate TypeScript definitions from Vue SFCs.
-
-### Other Projects
-
-| Project               | NPM                             | Repo                 |
-| --------------------- | ------------------------------- | -------------------- |
-| @vue/babel-plugin-jsx | [![rc][jsx-badge]][jsx-npm]     | [[GitHub][jsx-code]] |
-| eslint-plugin-vue     | [![stable][epv-badge]][epv-npm] | [[GitHub][epv-code]] |
-| @vue/test-utils       | [![beta][vtu-badge]][vtu-npm]   | [[GitHub][vtu-code]] |
-| vue-class-component   | [![beta][vcc-badge]][vcc-npm]   | [[GitHub][vcc-code]] |
-| vue-loader            | [![beta][vl-badge]][vl-npm]     | [[GitHub][vl-code]]  |
-| rollup-plugin-vue     | [![beta][rpv-badge]][rpv-npm]   | [[GitHub][rpv-code]] |
-
-[jsx-badge]: https://img.shields.io/npm/v/@vue/babel-plugin-jsx.svg
-[jsx-npm]: https://www.npmjs.com/package/@vue/babel-plugin-jsx
-[jsx-code]: https://github.com/vuejs/jsx-next
-[vd-badge]: https://img.shields.io/npm/v/@vue/devtools/beta.svg
-[vd-npm]: https://www.npmjs.com/package/@vue/devtools/v/beta
-[vd-code]: https://github.com/vuejs/vue-devtools/tree/next
-[epv-badge]: https://img.shields.io/npm/v/eslint-plugin-vue.svg
-[epv-npm]: https://www.npmjs.com/package/eslint-plugin-vue
-[epv-code]: https://github.com/vuejs/eslint-plugin-vue
-[vtu-badge]: https://img.shields.io/npm/v/@vue/test-utils/next.svg
-[vtu-npm]: https://www.npmjs.com/package/@vue/test-utils/v/next
-[vtu-code]: https://github.com/vuejs/vue-test-utils-next
-[jsx-badge]: https://img.shields.io/npm/v/@ant-design-vue/babel-plugin-jsx.svg
-[jsx-npm]: https://www.npmjs.com/package/@ant-design-vue/babel-plugin-jsx
-[jsx-code]: https://github.com/vueComponent/jsx
-[vcc-badge]: https://img.shields.io/npm/v/vue-class-component/next.svg
-[vcc-npm]: https://www.npmjs.com/package/vue-class-component/v/next
-[vcc-code]: https://github.com/vuejs/vue-class-component/tree/next
-[vl-badge]: https://img.shields.io/npm/v/vue-loader/next.svg
-[vl-npm]: https://www.npmjs.com/package/vue-loader/v/next
-[vl-code]: https://github.com/vuejs/vue-loader/tree/next
-[rpv-badge]: https://img.shields.io/npm/v/rollup-plugin-vue/next.svg
-[rpv-npm]: https://www.npmjs.com/package/rollup-plugin-vue/v/next
-[rpv-code]: https://github.com/vuejs/rollup-plugin-vue/tree/next
+    if (item.left) queue.push(item.left);
+    if (item.right) queue.push(item.right);
+  }
+}
+```

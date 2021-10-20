@@ -21,9 +21,11 @@ export default function Post({ code, frontmatter }) {
   const Component = React.useMemo(() => getMDXComponent(code), [code]);
   return (
     <article className="post-container">
-      <h1>{frontmatter.title}</h1>
-      <p>{frontmatter.date}</p>
-      <Component />
+      <h1 className="post-title">{frontmatter.title}</h1>
+      <p className="post-date">{frontmatter.date}</p>
+      <div className="post-content">
+        <Component />
+      </div>
     </article>
   );
 }
