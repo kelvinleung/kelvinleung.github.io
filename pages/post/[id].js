@@ -2,6 +2,15 @@ import React from "react";
 import { getMDXComponent } from "mdx-bundler/client";
 import { getAllPosts, getPost } from "lib/posts";
 
+const ListItem = (props) => {
+  console.log(props.children);
+  return (
+    <li>
+      <div>{props.children}</div>
+    </li>
+  );
+};
+
 export async function getStaticPaths() {
   const paths = (await getAllPosts()).map(({ id }) => ({ params: { id } }));
   return {
@@ -24,7 +33,7 @@ export default function Post({ code, frontmatter }) {
       <h1 className="post-title">{frontmatter.title}</h1>
       <p className="post-date">{frontmatter.date}</p>
       <div className="post-content">
-        <Component />
+        <Component components={{ li: ListItem }} />
       </div>
     </article>
   );

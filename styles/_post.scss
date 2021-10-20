@@ -12,7 +12,7 @@
     color: $secondary-font-color;
   }
   .post-content {
-    margin-top: 4rem;
+    margin: 4rem 0;
     a {
       padding: 0.5em 0;
       background-color: #fffaeb;
@@ -43,6 +43,34 @@
       font-style: italic;
       border-radius: 0 0.5rem 0.5rem 0;
       border-left: 0.4rem solid #494949;
+    }
+    ul {
+      li {
+        display: flex;
+        align-items: baseline;
+        padding: 0.5rem 0;
+        &::before {
+          content: url("../public/ul-marker.svg");
+          width: 20px;
+          height: 20px;
+          margin-right: 1rem;
+        }
+      }
+    }
+    ol {
+      counter-reset: n;
+      li {
+        display: flex;
+        align-items: baseline;
+        padding: 0.5rem 0;
+        &::before {
+          font-size: 1.2em;
+          color: $primary-color;
+          counter-increment: n;
+          content: counter(n) ".";
+          margin-right: 1rem;
+        }
+      }
     }
   }
 }
