@@ -12,8 +12,8 @@
 */
 pre[class*="language-"],
 code[class*="language-"] {
-  color: #333;
-  font-size: 0.9rem;
+  color: #eee6d7;
+  font-size: 1rem;
   text-shadow: none;
   font-family: "Fira Code", Monaco, "Andale Mono", "Ubuntu Mono", monospace;
   direction: ltr;
@@ -35,7 +35,7 @@ code[class*="language-"]::selection,
 pre[class*="language-"]::mozselection,
 code[class*="language-"]::mozselection {
   text-shadow: none;
-  background: #b3d4fc;
+  background: #eaf4ff;
 }
 @media print {
   pre[class*="language-"],
@@ -44,11 +44,11 @@ code[class*="language-"]::mozselection {
   }
 }
 pre[class*="language-"] {
-  padding: 1em;
-  margin: 0.5em 0;
-  border-radius: 0.5em;
+  padding: 1rem;
+  margin: 2rem 0;
+  border-radius: 0.5rem;
   overflow: auto;
-  background: #f8f8f8;
+  background: #30475c;
 }
 :not(pre) > code {
   padding: 0.2em 0.5em;
@@ -68,10 +68,11 @@ pre[class*="language-"] {
 .token.prolog,
 .token.doctype,
 .token.cdata {
-  color: #aaa;
+  color: #7f848e;
+  font-style: italic;
 }
 .token.punctuation {
-  color: #999;
+  color: #ffd700;
 }
 .token.property,
 .token.tag,
@@ -79,8 +80,10 @@ pre[class*="language-"] {
 .token.number,
 .token.constant,
 .token.symbol,
-.token.deleted {
-  color: #10b981;
+.token.deleted,
+.token.keyword.null,
+.token.keyword.nil {
+  color: #d8a677;
 }
 .token.selector,
 .token.attr-name,
@@ -88,32 +91,34 @@ pre[class*="language-"] {
 .token.char,
 .token.builtin,
 .token.inserted {
-  color: #8b5cf6;
+  color: #98c379;
 }
 .token.operator,
 .token.entity,
 .token.url,
 .language-css .token.string,
 .style .token.string {
-  color: #f59e0b;
+  color: #56b6c2;
 }
 .token.atrule,
 .token.attr-value,
 .token.keyword {
-  color: #3b82f6;
+  color: #eb97e4;
 }
-.token.property-access,
 .token.method,
-.token.function {
-  color: #ec4899;
+.token.function,
+.token.function.property-access {
+  color: #61afef;
 }
 .token.regex,
 .token.important,
-.token.variable {
-  color: #f59e0b;
+.token.variable,
+.token.property-access {
+  color: #e48d94;
 }
-.token.class-name {
-  color: #f59e0b;
+.token.class-name,
+.token.maybe-class-name {
+  color: #e5c07b;
 }
 .token.important,
 .token.bold {
