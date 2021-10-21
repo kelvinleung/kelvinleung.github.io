@@ -6,23 +6,39 @@ export default function NavBar() {
   const path = router.pathname;
   return (
     <nav className="navbar">
-      <ul>
-        <li>
-          <Link href="/">
-            <a className={path === "/" ? "active" : null}>Home</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/blogs">
-            <a>Blog</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/">
-            <a>How-to</a>
-          </Link>
-        </li>
-      </ul>
+      <div className="navbar-content">
+        <ul>
+          <li>
+            <Link href="/">
+              <a className={path === "/" ? "active" : null}>首页</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/posts">
+              <a
+                className={path.match(/(^\/post)|(^\/posts)/) ? "active" : null}
+              >
+                文章
+              </a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/">
+              <a>八股</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/">
+              <a>奇术</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/">
+              <a>关于</a>
+            </Link>
+          </li>
+        </ul>
+      </div>
     </nav>
   );
 }

@@ -1,33 +1,35 @@
 @import "../variables";
 
 .navbar {
-  max-width: 800px;
-  height: 4rem;
-  margin: 0 auto;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 100;
-  display: flex;
-  align-items: center;
   background-color: #fff;
-  ul {
+  .navbar-content {
+    max-width: 800px;
+    height: 4rem;
+    margin: 0 auto;
     display: flex;
-    gap: 0.5rem;
-    li {
-      padding: 0.8rem 1rem;
-      border-radius: 0.5rem;
-      &:hover {
-        background-color: #eee;
-        cursor: pointer;
-      }
-      a {
-        color: $secondary-font-color;
-      }
-      .active {
-        color: $primary-color;
-        font-weight: 600;
+    align-items: center;
+    ul {
+      display: flex;
+      gap: 1rem;
+      li {
+        padding: 0.8rem 1rem;
+        border-radius: 0.5rem;
+        &:hover {
+          background-color: #fafafa;
+          cursor: pointer;
+        }
+        a {
+          color: $secondary-font-color;
+          font-weight: 900;
+        }
+        .active {
+          color: $strong-font-color;
+        }
       }
     }
   }
