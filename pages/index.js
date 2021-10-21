@@ -18,7 +18,7 @@ export default function Home({ allPostData }) {
           <article>
             <Link href={`/post/${id}`}>
               <a>
-                <h2>{title}</h2>
+                <h1>{title}</h1>
               </a>
             </Link>
             <div className="posts-list-date">{date}</div>

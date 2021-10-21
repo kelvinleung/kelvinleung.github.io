@@ -3,7 +3,6 @@ import { getMDXComponent } from "mdx-bundler/client";
 import { getAllPosts, getPost } from "lib/posts";
 
 const ListItem = (props) => {
-  console.log(props.children);
   return (
     <li>
       <div>{props.children}</div>
