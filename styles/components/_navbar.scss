@@ -25,10 +25,10 @@
         }
         a {
           color: $secondary-font-color;
-          font-weight: 900;
         }
         .active {
-          color: $strong-font-color;
+          color: $primary-color;
+          font-weight: 600;
         }
       }
     }

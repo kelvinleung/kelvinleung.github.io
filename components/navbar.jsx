@@ -34,6 +34,11 @@ export default function NavBar() {
           </li>
           <li>
             <Link href="/">
+              <a>轮子</a>
+            </Link>
+          </li>
+          <li>
+            <Link href="/">
               <a>关于</a>
             </Link>
           </li>
