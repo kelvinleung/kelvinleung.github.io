@@ -7,12 +7,14 @@
     h1 {
       font-size: 2rem;
       color: $strong-font-color;
-      margin: 1rem 0;
+      margin: 1rem 0 2rem;
+      &:hover {
+        color: $primary-color;
+      }
     }
     .posts-list-date {
       font-size: 0.9rem;
       color: $secondary-font-color;
-      margin: 0 0 2rem;
     }
     p {
       line-height: 1.8;

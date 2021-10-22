@@ -1,7 +1,15 @@
-export default function Posts() {
-  return (
-    <div className="empty-message-container">
-      <p>开发中……</p>
-    </div>
-  );
+import PostList from "components/PostList";
+import { getAllPosts } from "lib/posts";
+
+export async function getStaticProps() {
+  const allPostData = await getAllPosts();
+  return {
+    props: {
+      allPostData,
+    },
+  };
+}
+
+export default function Posts({ allPostData }) {
+  return <PostList postData={allPostData} />;
 }
