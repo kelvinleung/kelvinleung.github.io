@@ -1,0 +1,29 @@
+---
+title: "使用 Next.js 与 MDX 搭建一个静态博客"
+date: "OCT 22, 2021"
+desc: "树有很多变体(如堆、 BST 等) ，可用于解决与调度、图像处理、数据库等相关的问题。许多复杂的问题可能看起来和树没有关系，但是实际上可以表示为一个问题。我们还将讨论这些问题(在本系列后面的部分中) ，看看树是如何使看似复杂的问题更容易理解和解决的。让我们从试图遍历这些连接的树节点（或整颗树）开始。就像我们可以迭代一个数组一样，如果我们也可以“迭代”树节点就更好了。然而，树并不是像数组那样的线性数据结构，因此遍历这些数据结构的方法不止一种。"
+---
+
+import TicTacToe from "components/TicTacToe.jsx";
+
+> "In some ways, programming is like painting. You start with a blank canvas and certain basic raw materials. You use a combination of science, art, and craft to determine what to do with them."<br/><br/>-- Andrew Hunt
+
+## Why?
+
+花了几天时间，重新搭了一个 blog。考虑到之前一直在写 Vue，这次想换 React 练练手，调研了一堆轮子后，最终定下来，用 [Next.js](https://nextjs.org/) 和 [MDX](https://mdxjs.com/) 来搭。过程中遇到了无数个坑，总结得到了这篇文章。
+
+之所以选择 Next.js 加 MDX，主要是考虑以下几个需求：
+
+- 基于 React，方便练手
+- 基于 Markdown，不用解释了吧
+- 页面、主题能随便改，最好能从零开始
+- 最终打包成静态页面，方便直接丢到 Github Pages 上
+- 有脚手架，项目配置简单
+
+上述几个需求，Next.js 都能完美满足，整个开发体验也是相当优秀，跟着文档走一遍基本就能搭出来。剩下的就是找各种优化的插件，以及无休止地修改页面样式。
+
+<TicTacToe />
+
+项目最开始搭建的时候，本来打算主要写写文章，所以用的是纯 MD 来写。后来发现了[这个网站](https://www.joshwcomeau.com/)，[这篇文章](https://www.joshwcomeau.com/blog/how-i-built-my-blog/)有介绍作者是怎样搭建他的 blog 的，里面有 MDX 的介绍。其实 MDX 就是能在 MD 文件里插入 React 的组件，当时我想，如果在文章里加一些自定义的组件，用来做演示，效果应该挺好的，就像上面的 Tic-tac-toe 组件。因为 Next.js 集成 MDX 有太多方案，每个都有 pros & cons，[这篇文章](https://dev.to/tylerlwsmith/quick-comparison-of-mdx-integration-strategies-with-next-js-1kcm)有对比，可以了解一下。我最终选的是 mdx-bundler，下面会有讲到。
+
+## How?
