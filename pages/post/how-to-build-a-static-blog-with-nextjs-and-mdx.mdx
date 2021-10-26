@@ -19,11 +19,33 @@ import TicTacToe from "components/TicTacToe.jsx";
 - 页面、主题能随便改，最好能从零开始
 - 最终打包成静态页面，方便直接丢到 Github Pages 上
 - 有脚手架，项目配置简单
+- SEO 友好
 
 上述几个需求，Next.js 都能完美满足，整个开发体验也是相当优秀，跟着文档走一遍基本就能搭出来。剩下的就是找各种优化的插件，以及无休止地修改页面样式。
 
 <TicTacToe />
 
-项目最开始搭建的时候，本来打算主要写写文章，所以用的是纯 MD 来写。后来发现了[这个网站](https://www.joshwcomeau.com/)，[这篇文章](https://www.joshwcomeau.com/blog/how-i-built-my-blog/)有介绍作者是怎样搭建他的 blog 的，里面有 MDX 的介绍。其实 MDX 就是能在 MD 文件里插入 React 的组件，当时我想，如果在文章里加一些自定义的组件，用来做演示，效果应该挺好的，就像上面的 Tic-tac-toe 组件。因为 Next.js 集成 MDX 有太多方案，每个都有 pros & cons，[这篇文章](https://dev.to/tylerlwsmith/quick-comparison-of-mdx-integration-strategies-with-next-js-1kcm)有对比，可以了解一下。我最终选的是 mdx-bundler，下面会有讲到。
+项目最开始搭建的时候，本来打算主要写写文章，所以用的是纯 MD 来写。后来发现了[这个网站](https://www.joshwcomeau.com/)，[这篇文章](https://www.joshwcomeau.com/blog/how-i-built-my-blog/)有介绍作者是怎样搭建他的 blog 的，里面有 MDX 的介绍。其实 MDX 就是能在 MD 文件里插入 React 的组件，当时我想，如果在文章里加一些自定义的组件，用来做演示，效果应该挺好的，就像上面的 `TicTacToe` 组件。
+
+Next.js 集成 MDX 有相当多方案，并且每个都有坑。[这篇文章](https://dev.to/tylerlwsmith/quick-comparison-of-mdx-integration-strategies-with-next-js-1kcm)有对比，感兴趣的可以了解一下。一开始我尝试用 `mdx-bundler` 来解释 MDX 文件，第一版出来的效果还行，只是卡在了生成目录上。后面发现 [React 的文档](https://beta.reactjs.org/)居然更新了，同样是基于 Next.js 和 MDX。于是我赶紧 clone 下来，发现他们用的是 `@mdx-js/loader`，折腾了一番之后，我最终同样选择了 `@mdx-js/loader`，下面会有讲到。
 
 ## How?
+
+### 第一步：先跑起来再说
+
+```bash
+yarn create next-app
+```
+
+这时目录结构是这样的：
+
+```bash
+pages/
+| -- _app.js
+| -- index.js
+public/
+| -- favicon.ico
+next.config.js
+styles/
+| -- main.scss
+```
