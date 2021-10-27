@@ -3,7 +3,7 @@ import "styles/main.scss";
 
 function MyApp({ Component, pageProps }) {
   return (
-    <Layout pageTitle="Kelvin's Blog" description="Kelvin's blog">
+    <Layout>
       <Component {...pageProps} />
     </Layout>
   );

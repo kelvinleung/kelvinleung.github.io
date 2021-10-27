@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-export default function PostList({ postData }) {
+export default function PostList({ postsData }) {
   return (
     <ul className="main-posts-list">
-      {postData.map(({ id, title, date, desc }) => (
+      {postsData.map(({ id, title, date, desc }) => (
         <li key={id}>
           <article>
             <div className="posts-list-date">{date}</div>

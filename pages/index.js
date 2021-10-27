@@ -2,14 +2,14 @@ import PostList from "components/PostList";
 import { getAllPosts } from "lib/posts";
 
 export async function getStaticProps() {
-  const allPostData = await getAllPosts();
+  const postsData = getAllPosts();
   return {
     props: {
-      allPostData,
+      postsData,
     },
   };
 }
 
-export default function Home({ allPostData }) {
-  return <PostList postData={allPostData} />;
+export default function Home({ postsData }) {
+  return <PostList postsData={postsData} />;
 }
