@@ -1,51 +1,19 @@
 import { useState } from "react";
-
-const squareStyle = {
-  fontSize: "24px",
-  cursor: "pointer",
-  border: "none",
-  backgroudColor: "#fafafa",
-};
+import style from "./TicTacToe.module.scss";
 
 const Square = ({ value, onClick }) => (
-  <button style={squareStyle} onClick={onClick}>
+  <button className={style.square} onClick={onClick}>
     {value}
   </button>
 );
 
-const boardStyle = {
-  width: "250px",
-  height: "250px",
-  display: "grid",
-  gridTemplate: "repeat(3, 1fr) / repeat(3, 1fr)",
-  gap: "4px",
-  borderRadius: "16px",
-  overflow: "hidden",
-};
-
 const Board = ({ squares, onClick }) => (
-  <div style={boardStyle}>
+  <div className={style.board}>
     {squares.map((square, i) => (
       <Square key={i} value={square} onClick={() => onClick(i)} />
     ))}
   </div>
 );
-
-const gameStyle = {
-  margin: "32px 0",
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  gap: "8px",
-};
-
-const resetButtonStyle = {
-  padding: "8px 16px",
-  fontSize: "14px",
-  borderRadius: "8px",
-  border: "none",
-  cursor: "pointer",
-};
 
 const TicTacToe = () => {
   const [board, setBoard] = useState(Array(9).fill(null));
@@ -63,12 +31,12 @@ const TicTacToe = () => {
   const reset = () => setBoard(Array(9).fill(null));
 
   return (
-    <div style={gameStyle}>
+    <div className={style.game}>
       <Board squares={board} onClick={(i) => handleClick(i)} />
       <p>
         {winner ? "Winner: " + winner : "Next Player: " + (xIsNext ? "X" : "O")}
       </p>
-      <button style={resetButtonStyle} onClick={reset}>
+      <button className={style.resetButton} onClick={reset}>
         重新开始
       </button>
     </div>
