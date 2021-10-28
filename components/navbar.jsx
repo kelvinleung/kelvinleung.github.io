@@ -18,7 +18,7 @@ export default function NavBar() {
               <a
                 className={path.match(/(^\/post)|(^\/posts)/) ? "active" : null}
               >
-                文章
+                秘笈
               </a>
             </Link>
           </li>
@@ -39,7 +39,7 @@ export default function NavBar() {
           </li>
           <li>
             <Link href="/">
-              <a>关于</a>
+              <a>鄙人</a>
             </Link>
           </li>
         </ul>
