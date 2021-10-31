@@ -1,6 +1,7 @@
 import React from "react";
 import { MDXProvider } from "@mdx-js/react";
 import Head from "next/head";
+import components from "components/MDXComponents";
 
 // @Todo 生成目录
 function getHeadings(nodes) {
@@ -27,7 +28,7 @@ function PostLayout({ meta, children }) {
           <h1 className="post-title">{meta.title}</h1>
           <p className="post-date">{meta.date}</p>
         </div>
-        <MDXProvider>{children}</MDXProvider>
+        <MDXProvider components={components}>{children}</MDXProvider>
       </article>
     </main>
   );
