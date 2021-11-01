@@ -1,5 +1,53 @@
 ---
-title: "Javascript 也需要编译？"
+title: "Javascript 的“编译”过程都做了什么？"
 date: "OCT 29, 2021"
 desc: ""
 ---
+
+一切要从网上看到的一道面试题说起：
+
+```js
+// 请写出下面代码的输出结果：
+function fn(a, c) {
+  console.log(a); // f a() {}
+  var a = 123;
+  console.log(a); // 123
+  console.log(c); // f c() {}
+  function a() {}
+  if (false) {
+    var d = 678;
+  }
+  console.log(d); // undefined
+  console.log(b); // undefined
+  var b = function () {};
+  console.log(b); // f () {}
+  function c() {}
+  console.log(c); // f c() {}
+}
+fn(1, 2);
+```
+
+当时我瞄了一眼，这不很简单么，啪一下就做完了。回头一看答案，第一个`console.log(a)`居然不是`1`，什么情况？经过一番研究，查了无数资料，我终于搞明白了。原来 Javasript 是有“编译”过程的，一些奇奇怪怪的事情都发生在这个阶段中。
+
+可是，JS 明明是一门**解析型语言**，哪来的编译过程？
+
+其实，这里所讲的“编译”，并不是“编译型语言”的那个编译，而是指在 JS 代码执行之前，解析器所进行的一系列动作，像词法分析、变量初始化等。由于它们发生在代码真正“执行”之前，所以大家习惯称之为“编译”或“预编译”。
+
+## 两个概念
+
+整个“编译”阶段，主要涉及到的是**执行上下文**与**执行栈（调用栈）**这两个核心的概念，了解这两个概念，对于理解 JS 的底层执行机制，如变量提升、`this`、闭包等，都会有很大的帮助。
+
+### 执行上下文（Execution Context，下面简称 EC）
+
+所谓的 EC，指的是 Javascript 解析运行的环境，是一个抽象的概念。所有 JS 的代码，都是在 EC 中运行的。EC 有三种类型：
+
+- **全局执行上下文（Global Execution Context）**：默认的 EC，所有不是写在函数里的代码，都运行在 GEC 中。GEC 会创建一个全局对象`window`（浏览器环境），并将 `this` 指向 `window`。所有 JS 程序只会有唯一的一个 GEC。
+- **函数执行上下文（Function Execution Context）**：每一次函数被调用时，都会为这个函数创建一个全新的 EC。每个函数都有自己的 EC，当且仅当在被调用时才会创建。每当创建一个 FEC 时，都会有一系列的事情发生，这里正是上面那道面试题的关键所在，下文会说到。
+- **Eval 函数执行上下文（Eval Function Execution Context）**：每段在`eval`中执行的代码，都会有它对应的执行上下文。由于`eval`尽量还是少用，这里暂时忽略它。
+
+### 执行栈/调用栈（Execution Stack，或 Calling Stack，下面简称 ES）
+
+## 参考资料
+
+1. [Understanding Execution Context and Execution Stack in Javascript](https://blog.bitsrc.io/understanding-execution-context-and-execution-stack-in-javascript-1c9ea8642dd0)
+2. [Execution context, Scope chain and JavaScript internals](https://medium.com/@happymishra66/execution-context-in-javascript-319dd72e8e2c)
