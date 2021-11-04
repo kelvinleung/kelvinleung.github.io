@@ -1,12 +1,11 @@
 const path = require("path");
 const customHeaders = require("remark-heading-id");
-const rehypePrism = require("@mapbox/rehype-prism");
 const withOptimizedImages = require("next-optimized-images");
 
 module.exports = withOptimizedImages({
   reactStrictMode: true,
   pageExtensions: ["js", "jsx", "md", "mdx"],
-  handleImages: ["jpg"],
+  handleImages: ["jpg", "gif"],
   images: {
     disableStaticImages: true,
   },
@@ -19,7 +18,6 @@ module.exports = withOptimizedImages({
           loader: "@mdx-js/loader",
           options: {
             remarkPlugins: [customHeaders],
-            rehypePlugins: [rehypePrism],
           },
         },
         path.join(__dirname, "./plugins/md-layout-loader"),

@@ -47,11 +47,15 @@ code[class*="language-"]::mozselection {
   }
 }
 pre[class*="language-"] {
-  padding: 1rem;
   margin: 2rem 0;
   border-radius: 0.5rem;
   overflow: auto;
   background: #30475c;
+}
+code[class*="language-"] {
+  display: table;
+  width: 100%;
+  padding: 1.5rem 1rem;
 }
 :not(pre) > code {
   padding: 0.2em 0.5em;
@@ -133,26 +137,40 @@ pre[class*="language-"] {
 .token.entity {
   cursor: help;
 }
+
+.token-line {
+  display: table-row;
+}
+.line-number,
+.token-line-content {
+  display: table-cell;
+}
+.line-number {
+  width: 0;
+  text-align: right;
+  padding-right: 1em;
+  color: #7f848e;
+}
 /*********************************************************
 * Line highlighting
 */
-pre[data-line] {
-  position: relative;
-}
-pre[class*="language-"] > code[class*="language-"] {
-  position: relative;
-  z-index: 1;
-}
-.line-highlight {
-  position: absolute;
-  left: 0;
-  right: 0;
-  padding: inherit 0;
-  margin-top: 1em;
-  background: #f7ebc6;
-  box-shadow: inset 5px 0 0 #f7d87c;
-  z-index: 0;
-  pointer-events: none;
-  line-height: inherit;
-  white-space: pre;
-}
+// pre[data-line] {
+//   position: relative;
+// }
+// pre[class*="language-"] > code[class*="language-"] {
+//   position: relative;
+//   z-index: 1;
+// }
+// .line-highlight {
+//   position: absolute;
+//   left: 0;
+//   right: 0;
+//   padding: inherit 0;
+//   margin-top: 1em;
+//   background: #f7ebc6;
+//   box-shadow: inset 5px 0 0 #f7d87c;
+//   z-index: 0;
+//   pointer-events: none;
+//   line-height: inherit;
+//   white-space: pre;
+// }

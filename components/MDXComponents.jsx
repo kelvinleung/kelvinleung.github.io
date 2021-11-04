@@ -1,3 +1,5 @@
+import Highlight, { defaultProps } from "prism-react-renderer";
+
 const Marker = () => (
   <svg
     className="marker"
@@ -70,9 +72,42 @@ const OList = ({ children }) => {
       </ol>
     );
 };
+
+const CodeBlock = ({ children }) => {
+  const { className, children: code, metastring } = children.props;
+  const language = className.replace(/language-/, "");
+  return (
+    <Highlight
+      {...defaultProps}
+      // 去除最后的换行符
+      code={code.replace(/\n$/, "")}
+      language={language}
+      theme={undefined}
+    >
+      {({ className, tokens, getLineProps, getTokenProps }) => (
+        <pre className={className}>
+          <code className={className}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line, key: i })}>
+                <span className="line-number">{i + 1}</span>
+                <div className="token-line-content">
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token, key })} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </code>
+        </pre>
+      )}
+    </Highlight>
+  );
+};
+
 const Components = {
   ul: UList,
   ol: OList,
+  pre: CodeBlock,
 };
 
 export default Components;
