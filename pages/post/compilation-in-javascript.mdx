@@ -78,13 +78,7 @@ console.log("Inside Global Execution Context");
 
 ![执行栈](/images/compilation-in-javascript/excecution-stack.gif)
 
-## 执行上下文的创建
-
-程序在每次调用函数的时候，JS 引擎都会创建一个新的执行上下文，不同版本的规范对创建过程有着不同的定义。一开始我还以为是我理解错了，很多概念、过程都对不上。后来我又查了更多资料，还看了 ES 的规范，才发现是新的规范里作了调整，不过基本上是大同小异。
-
-### 旧规范（ES1/3）
-
-在网上能找到的资料中，尤其是国内的中文语境下，大多数都是基于旧规范的解析。其核心概念有**AO（Activation Object，活跃对象）**、**VO（Variable Object，变量对象）**、**作用域（Scope Chain）**等。
+## VO（Variable Object，变量对象）
 
 “预编译”阶段，一个很重要的任务是初始化变量。我们定义的变量，声明的函数，函数的形参等用于执行代码的数据，都存放在与对应执行上下文关联的一个叫变量对象（VO）的机制中。VO 中存储着在上下文中声明的以下内容：
 
@@ -132,19 +126,128 @@ VO(test functionContext) = {
 
 VO 可以看作是一个抽象的概念，它在不同的执行上下文中，有着不同的命名与初始结构。
 
-- 在全局执行上下文中，VO 即全局对象`window`（浏览器环境），在初始化的时候，定义了像` Math``String``Date `等属性
+- 在全局执行上下文中，VO 即全局对象`window`（浏览器环境），又被称为 GO（Global Object）；它在初始化的时候，定义了像`Math`、`String`、`Date`等属性
 - 在函数执行上下文中，它还附加`arguments`、形参等额外的细节，又被称为 AO（Activation Object）
 
 了解了 VO 的概念后，就可以正式进入主题了。在旧规范中，执行上下文的创建分为两个基本阶段：
 
-1. 进入执行上下文
-2. 执行代码
+- 进入执行上下文
+- 执行代码
 
-#### 进入执行上下文
+### 阶段一：进入执行上下文
 
-#### 执行代码
+在进入执行上下文时，VO 会添加以下属性：
 
-### 新规范（ES5+）
+1. 对于每一个形参（假设是在函数执行上下文中，此时的 VO 称为 AO），会增加一个名称和值与该形参对应的属性；如果是未传值的形参，则值为`undefined`
+2. 对于每个函数声明，会增加一个名称与函数名一样的属性，值为该函数对象；如果 VO 已经有同名属性，则覆盖之
+3. 对于每个变量声明，会增加一个名称与该变量一样的属性，值为`undefined`；如果 VO 已经有同名属性，则保留原有的属性，忽略当前变量声明
+
+下面用一个例子来展示上述过程：
+
+```js
+function test(a, b) {
+  var c = 10;
+  function d() {}
+  var e = function _e() {};
+  (function x() {});
+}
+
+test(10); // 调用函数
+```
+
+在调用函数 test() 时，传进去了参数`10`，此时在进入执行上下文阶段中，AO 可以表示为：
+
+```js
+AO(test) = {
+  a: 10,
+  b: undefined,
+  c: undefined,
+  d: <reference to FunctionDeclaration "d"> // 指向函数 d
+  e: undefined
+};
+```
+
+有两个个地方要注意一下：
+
+- 首先，`d`的值是一个函数，因为它是一个函数声明，而`e`的值是`undefined`，因为它是一个函数表达式，`e`是一个变量
+- `x`并没有在 AO 里，因为它也是一个表达式，但并没有赋值给任何变量，不存在变量的声明
+
+### 阶段二：执行代码
+
+接着上面的例子，当进入执行代码阶段的时候，`test()`函数中的代码开始执行，AO 中的属性被赋值：
+
+```js
+AO['c'] = 10;
+AO['e'] = <reference to FunctionExpression "_e">;
+```
+
+此时，AO 可以表示为：
+
+```js
+AO(test) = {
+  a: 10,
+  b: undefined,
+  c: 10,
+  d: <reference to FunctionDeclaration "d"> // 指向函数 d
+  e: <reference to FunctionExpression "_e"> // 指向函数 _e
+};
+```
+
+值得注意的是，`e`的值为`_e`函数体，但该函数是不可以通过`_e()`来调用的，因为它并没有在 AO 的声明。我们再通过一个例子来加深对赋值表达式以及这两个阶段的理解：
+
+```js
+console.log(x); // function x() {}
+var x = 10;
+console.log(x); // 10
+x = 20;
+function x() {}
+console.log(x); // 20
+```
+
+类似`var x = 10`这样的赋值表达式，可以拆解成两个独立的语句来理解。首先是`var x`，定义了一个变量`x`；然后是`x = 10`，给这个变量赋上值。我们将上述示例代码的第 2 行，拆成这样的两段，整个执行上下文的创建过程，可以这样分析：
+
+1. 首先是第一阶段，代码执行到第 2 行的前半部分，也就是`var x`，此时`VO = { x: undefined }`
+2. 接着代码执行到第 5 行，是一个函数的声明，尽管 VO 中已经有了同名的`x`属性，但由于函数声明会将其覆盖，此时`VO = { x: <reference to FunctionDeclaration "d"> }`
+3. 第一阶段结束，进入第二阶段
+4. 代码执行到第 1 行，此时`x`为函数，打印出函数体
+5. 代码跳过第 2 行的前半部分（已经在第一阶段执行了），执行后半部分，`x = 10`，此时`VO = { x: 10 }`
+6. 代码执行到第 3 行，打印`x`的值`10`
+7. 代码执行到第 4 行，此时`VO = { x: 20 }`
+8. 代码跳过第 5 行（已经在第一阶段执行了）
+9. 代码执行到第 6 行，打印`x`的值`20`
+
+## 作用域链（Scope Chain）
+
+所谓的作用域链，是一连串的作用域，或者 VO，决定了某个执行上下文中，能够访问到哪些变量及函数。例如：
+
+```js
+var a = 10;
+function foo() {
+  var b = 12;
+  var c = addANumber(20);
+  function addANumber(num) {
+    return a + num;
+  }
+  console.log(c); // 30
+}
+foo();
+```
+
+在上面的例子中，存在三个执行上下文：
+
+- 全局执行上下文，其 GO 包含变量`a`与函数`foo()`
+- `foo()`的函数执行上下文，其 AO 包含变量`b`、`c`与函数`addNumber()`
+- `addNumber()`的函数执行上下文，其 AO 包含形参`num`
+
+其中，函数`addNumber()`可以访问到其 AO 上的形参`num`以及其外层上下文 VO 中的所有属性。比如在`addNumber()`中访问变量`a`，首先会查看当前 AO，发现当前作用域中没有该变量，于是往外层继续查找，在`foo()`的 AO 中，同样找不到变量`a`，再继续往外来到全局上下文，在 GO 中找到了`a`。通过这样的方式，形成的查找链，就是作用域链。
+
+要注意的是，内层能访问外层，而外层没法访问内层。你无法在全局作用域中调用`addNumber()`函数，因为它定义在内层的 VO 中。
+
+## 新规范（ES5+）
+
+程序在每次调用函数的时候，JS 引擎都会创建一个新的执行上下文，不同版本的规范对创建过程有着不同的定义。一开始我还以为是我理解错了，很多概念、过程都对不上。后来我又查了更多资料，还看了 ES 的规范，才发现是新的规范里作了调整，不过基本上是大同小异。
+
+在网上能找到的资料中，尤其是国内的中文语境下，大多数都是基于旧规范的解析。其核心概念有**AO（Activation Object，活跃对象）**、**VO（Variable Object，变量对象）**、**作用域链（Scope Chain）**等。
 
 执行上下文在创建阶段被创建，随之创建的还有以下两个组件（component）：
 
@@ -178,3 +281,4 @@ ExecutionContext = {
 
 1. [Understanding Execution Context and Execution Stack in Javascript](https://blog.bitsrc.io/understanding-execution-context-and-execution-stack-in-javascript-1c9ea8642dd0)
 2. [Execution context, Scope chain and JavaScript internals](https://medium.com/@happymishra66/execution-context-in-javascript-319dd72e8e2c)
+3. [ECMA-262-3 in detail. Chapter 2. Variable object.](http://dmitrysoshnikov.com/ecmascript/chapter-2-variable-object/)
