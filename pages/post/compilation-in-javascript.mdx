@@ -43,9 +43,21 @@ fn(1, 2);
 - **函数执行上下文（Function Execution Context）**：每一次函数被调用时，都会为这个函数创建一个全新的 EC。每个函数都有自己的 EC，当且仅当在被调用时才会创建，而每个程序可以有无数个函数执行上下文。
 - **Eval 函数执行上下文（Eval Function Execution Context）**：每段在`eval`中执行的代码，都会有它对应的执行上下文。由于`eval`尽量还是少用，可以暂时忽略它。
 
+每个 EC 都会有一系列的属性（或者叫状态）来记录与之关联的代码的执行进度，下面是 EC 的结构：
+
+```js
+ExecutionContext {
+  VariableObject,
+  ScopeChain,
+  thisValue
+}
+```
+
+除了上面三个属性以外，在不同的实现里还会有其它额外的状态。在详细说明上述三个属性前，我们先来了解一下什么是执行栈。
+
 ## 执行栈/调用栈（Execution Stack，下面简称 ES）
 
-执行栈（有些语言也叫“调用栈”，Calling Stack）顾名思义，是一个后进先出的“栈”，用于存放所有 JS 代码执行过种中产生的执行上下文。JS 引擎在开始执行代码之前，首先会创建一个 GEC，然后把它压入执行栈中。当代码执行到有函数调用的时候，又会为该函数创建 EC 并压进 ES。JS 引擎执行栈顶的 EC 所对应的函数，当该函数执行完毕后，它的 EC 从 ES 中弹出，然后再继续执行下一个 EC 对应的函数，直至所有代码执行完毕，最底层的 GEC 最后弹出，整个程序执行完毕。以下面的代码为例：
+执行上下文的创建、搁置、恢复、结束等，是通过执行栈来管理的。执行栈（有些语言也叫“调用栈”，Calling Stack）顾名思义，是一个后进先出的“栈”，用于存放所有 JS 代码执行过种中产生的执行上下文。JS 引擎在开始执行代码之前，首先会创建一个 GEC，然后把它压入执行栈中。当代码执行到有函数调用的时候，又会为该函数创建 EC 并压进 ES。之前的 EC 则会保存当前的执行状态，进入到搁置状态中。JS 引擎接着执行刚压进栈顶的 EC 所对应的函数，当该函数执行完毕后，它的 EC 从 ES 中弹出，然后将之前搁置的 EC 恢复，继续执行其对应的函数，直至所有代码执行完毕。执行完毕后，最底层的 GEC 最后弹出，整个程序执行完毕。以下面的代码为例：
 
 ```js
 // 1. 先创建一个 GEC，入栈
@@ -216,9 +228,11 @@ console.log(x); // 20
 8. 代码跳过第 5 行（已经在第一阶段执行了）
 9. 代码执行到第 6 行，打印`x`的值`20`
 
+如果你能理解这个过程，那文章开头的那道题，也可以用同样的思路去理解。
+
 ## 作用域链（Scope Chain）
 
-所谓的作用域链，是一连串的作用域，或者 VO，决定了某个执行上下文中，能够访问到哪些变量及函数。例如：
+所谓的作用域链，是一连串 VO 所组成的“链”，它决定了某个执行上下文中，能够访问到哪些变量及函数。例如：
 
 ```js
 var a = 10;
@@ -239,22 +253,72 @@ foo();
 - `foo()`的函数执行上下文，其 AO 包含变量`b`、`c`与函数`addNumber()`
 - `addNumber()`的函数执行上下文，其 AO 包含形参`num`
 
-其中，函数`addNumber()`可以访问到其 AO 上的形参`num`以及其外层上下文 VO 中的所有属性。比如在`addNumber()`中访问变量`a`，首先会查看当前 AO，发现当前作用域中没有该变量，于是往外层继续查找，在`foo()`的 AO 中，同样找不到变量`a`，再继续往外来到全局上下文，在 GO 中找到了`a`。通过这样的方式，形成的查找链，就是作用域链。
+其中，函数`addNumber()`可以访问到其 AO 上的形参`num`以及其外层上下文 VO 中的所有属性。比如在`addNumber()`中访问变量`a`，首先会查看当前 AO，发现当前作用域中没有该变量，于是往外层继续查找，在`foo()`的 AO 中，同样找不到变量`a`，再继续往外来到全局上下文，在 GO 中找到了`a`。通过这样的方式，形成的查找链，就是作用域链。像变量`a`这种不在当前作用域中的变量，我们称之为“自由变量”，查找自由变量的过程，就需要用到作用域链。
 
 要注意的是，内层能访问外层，而外层没法访问内层。你无法在全局作用域中调用`addNumber()`函数，因为它定义在内层的 VO 中。
 
-## 新规范（ES5+）
+## “this”
 
-程序在每次调用函数的时候，JS 引擎都会创建一个新的执行上下文，不同版本的规范对创建过程有着不同的定义。一开始我还以为是我理解错了，很多概念、过程都对不上。后来我又查了更多资料，还看了 ES 的规范，才发现是新的规范里作了调整，不过基本上是大同小异。
+`this`是执行上下文中的一个特殊对象，任何对象都有可能成为`this`的值。`this`的值在进入执行上下文的时候就被确定，且无法被修改，因为它并不是一个位于 VO 上定义的“变量”。要注意的是，在 ES6 之前，`this`是执行上下文的属性，而不是 VO 的属性；而在 ES6 中，`this`成为了词法环境的属性，目的是为了支持箭头函数（箭头函数的`this`继承自其外层执行上下文）。
 
-在网上能找到的资料中，尤其是国内的中文语境下，大多数都是基于旧规范的解析。其核心概念有**AO（Activation Object，活跃对象）**、**VO（Variable Object，变量对象）**、**作用域链（Scope Chain）**等。
+在全局上下文中，`this`的值等于全局对象 GO：
 
-执行上下文在创建阶段被创建，随之创建的还有以下两个组件（component）：
+```js
+var x = 10;
+console.log(
+  x, // 10
+  this.x, // 10
+  window.x // 10
+);
+```
 
-1. 词法环境（LexicalEnvironment）
-2. 变量环境（VariableEnvironment)
+在函数上下文中，`this`的值在每一次函数调用中都有可能不同，`this`的值通过调用表达式（调用方式）由调用方（caller）提供。下面的例子中，函数`foo()`的代码自始至终并没有改变过，但`this`的值（caller）却在每次调用中都不一样：
 
-因此，执行上下文也可以用以下的伪代码表示：
+```js
+function foo() {
+  alert(this);
+}
+
+foo(); // caller: 全局对象
+foo.prototype.constructor(); // caller: foo.prototype
+
+var bar = {
+  baz: foo,
+};
+
+bar.baz(); // caller: bar
+
+bar.baz(); // caller: bar
+(bar.baz = bar.baz)(); // caller: 全局对象
+(bar.baz, bar.baz)(); // caller: 全局对象
+(false || bar.baz)(); // caller: 全局对象
+
+var otherFoo = bar.baz;
+otherFoo(); // caller: 全局对象
+```
+
+## 补充一：新规范（ES5+）中的 EC
+
+在我一开始去找有关变量提升题目，或者说“预编译”的解释资料时，我发现不同版本的规范对这个过程有着不同的定义。一开始我还以为是我理解错了，很多概念、过程都对不上。后来我又查了更多资料，还看了 ES 的规范，才发现是新的规范里作了调整，不过基本上是大同小异。在网上能找到的资料中，尤其是国内的中文语境下，大多还是套用上文提到的 VO 的执行过程，基于 ES1/3，早已过时。
+
+而在 ES5 及以后的版本中，已经不存在 VO 等一系列相关的概念了，取而代之的是一个叫词法环境（Lexical Environment）的新定义。[ES6 标准](https://262.ecma-international.org/6.0/#sec-lexical-environments)中对词法环境的定义为：
+
+> A Lexical Environment is a specification type used to define the association of Identifiers to specific variables and functions based upon the lexical nesting structure of ECMAScript code. A Lexical Environment consists of an Environment Record and a possibly null reference to an outer Lexical Environment.
+
+简单来说，词法环境就是一个包含了标识符与变量间映射关系的结构（这里的标识符指的是变量/函数名，变量指的是实际的对象以及原始值，其中对象又包括函数对象与数组对象）。以下面的代码为例：
+
+```js
+function foo() {
+  var bar = 10;
+}
+```
+
+变量`bar`在“词法”上位于`foo()`函数内部，而`foo()`函数在词法上又位于全局对象中，这些词法结构被记录在词法环境中。执行上下文创建的时包括以下两个组件（component）：
+
+- 词法环境（LexicalEnvironment）
+- 变量环境（VariableEnvironment)
+
+它们都属于词法环境（Lexical Environment，上面的 LexicalEnvironment 可以看作是它的实例）。因此，执行上下文也可以用以下的伪代码表示：
 
 ```js
 ExecutionContext = {
@@ -263,22 +327,153 @@ ExecutionContext = {
 }
 ```
 
-#### 环境（Environment）
+它们的区别在于，`LexicalEnvironment`用于存储函数声明和`let`、`const`声明的变量，而`VariableEnvironment`仅用于存储`var`变量。
 
-[ES6 标准](https://262.ecma-international.org/6.0/#sec-lexical-environments)中对词法环境的定义为：
+词法环境（Lexical Environment），又包含了以下三个组件：
 
-> A Lexical Environment is a specification type used to define the association of Identifiers to specific variables and functions based upon the lexical nesting structure of ECMAScript code. A Lexical Environment consists of an Environment Record and a possibly null reference to an outer Lexical Environment.
+- 环境记录（Environment Record）
+- 外部环境引用（Reference to the Outer Environment）
+- This 绑定（This Binding）
 
-简单来说，词法环境就是一个包含了标识符与变量间映射关系的结构（这里的标识符指的是变量/函数名，变量指的是实际的对象以及原始值，其中对象又包括函数对象与数组对象）。词法环境，又包含了以下三个组件：
+### 环境记录（Environment Record）
 
-1. 环境记录（Environment Record）
-2. 外部环境引用（Reference to the outer environment）
-3. This 绑定
+环境记录是词法环境中用来记录变量与函数声明的地方，它又分为两类：
 
-## 变量提升题目的解题步骤
+- **声明性环境记录（Declarative Environment Record）**：存储变量和函数声明，对于函数来说，还包括了`arguments`对象
+- **对象环境记录（Object Environment Record）**：全局代码的词法环境，除了全局变量与函数声明外，还包括了由宿主环境提供的对象属性（以浏览器为例，即提供给`window`对象的各种属性）
+
+这些概念听上去是不是很熟悉，其实本质上就是 VO（AO/GO），变量创建赋值的机制也是一样的，分为两个阶段，这里不再赘述。
+
+### 外部环境引用（Reference to the Outer Environment）
+
+对于外层词法环境的引用，JS 引擎在对变量进行查找时，若不能在当前词法环境中找到该变量，则会利用这个引用，从外层的词法环境中继续查找。说白了，就是上面提到的作用域链。
+
+### This 绑定（This Binding）
+
+顾名思义，就是用来记录`this`的地方，它在 ES5 的时候还是执行上下文的属性，而在 ES6 时又改为词法环境中的一个组件。
+
+### 小结
+
+最后，我们用一个例子来把这些新概念串起来：
+
+```js
+let a = 20;
+const b = 30;
+var c;
+function multiply(e, f) {
+  var g = 20;
+  return e * f * g;
+}
+c = multiply(20, 30);
+```
+
+上述代码执行的时候，JS 引擎首先会创建一个全局的执行上下文来执行全局代码。在执行上下文的创建阶段时，全局上下文可以表示为：
+
+```js
+GlobalExectionContext = {
+  LexicalEnvironment: {
+    EnvironmentRecord: {
+      Type: "Object",
+      // 标识符绑定
+      a: < uninitialized >, // 未初始化
+      b: < uninitialized >,
+      multiply: < func >
+    },
+    outer: <null>,
+    ThisBinding: <Global Object>
+  },
+  VariableEnvironment: {
+    EnvironmentRecord: {
+      Type: "Object",
+      // 标识符绑定
+      c: undefined,
+    },
+    outer: <null>,
+    ThisBinding: <Global Object>
+  }
+}
+```
+
+接下来进入到全局上下文的执行阶段，变量赋值在此完成。此时的全局上下文为：
+
+```js
+GlobalExectionContext = {
+  LexicalEnvironment: {
+    EnvironmentRecord: {
+      Type: "Object",
+      a: 20,
+      b: 30,
+      multiply: < func >
+    },
+    outer: <null>,
+    ThisBinding: <Global Object>
+  },
+  VariableEnvironment: {
+    EnvironmentRecord: {
+      Type: "Object",
+      c: undefined,
+    },
+    outer: <null>,
+    ThisBinding: <Global Object>
+  }
+}
+```
+
+程序继续执行到`multiply(20, 30)`时，一个新的函数执行上下文被创建来执行`multiply()`函数。此时函数上下文进入到创建阶段：
+
+```js
+FunctionExectionContext = {
+  LexicalEnvironment: {
+    EnvironmentRecord: {
+      Type: "Declarative",
+      Arguments: {0: 20, 1: 30, length: 2},
+    },
+    outer: <GlobalLexicalEnvironment>,
+    ThisBinding: <Global Object or undefined>,
+  },
+  VariableEnvironment: {
+    EnvironmentRecord: {
+      Type: "Declarative",
+      g: undefined
+    },
+    outer: <GlobalLexicalEnvironment>,
+    ThisBinding: <Global Object or undefined>
+  }
+}
+```
+
+随后函数上下文进入到执行阶段，为变量进行赋值操作，此时上下文为：
+
+```js
+FunctionExectionContext = {
+  LexicalEnvironment: {
+    EnvironmentRecord: {
+      Type: "Declarative",
+      Arguments: {0: 20, 1: 30, length: 2},
+    },
+    outer: <GlobalLexicalEnvironment>,
+    ThisBinding: <Global Object or undefined>,
+  },
+  VariableEnvironment: {
+    EnvironmentRecord: {
+      Type: "Declarative",
+      g: 20
+    },
+    outer: <GlobalLexicalEnvironment>,
+    ThisBinding: <Global Object or undefined>
+  }
+}
+```
+
+最后，当函数执行完毕后，会接返回值存储在变量`c`中，全局上下文的词法环境得到更新，当所有全局代码完成执行后，整个程序执行结束。
+
+你可能注意到了，由`let`和`const`声明的变量，并没有初始值，而由`var`声明的变量的初始值为`undefined`。因此你可以在`var`声明的变量之前使用该变量（尽量值为`undefined`），却不能在`let`或`const`声明的变量前使用它们（会报错）。而这，就是所谓的“变量提升”。
+
+在执行阶段时，如果 JS 引擎没法找到`let`声明变量的赋值时，该变量则会被赋值为`undefined`。
 
 ## 参考资料
 
 1. [Understanding Execution Context and Execution Stack in Javascript](https://blog.bitsrc.io/understanding-execution-context-and-execution-stack-in-javascript-1c9ea8642dd0)
 2. [Execution context, Scope chain and JavaScript internals](https://medium.com/@happymishra66/execution-context-in-javascript-319dd72e8e2c)
 3. [ECMA-262-3 in detail. Chapter 2. Variable object.](http://dmitrysoshnikov.com/ecmascript/chapter-2-variable-object/)
+4. [JavaScript. The Core.](http://dmitrysoshnikov.com/ecmascript/javascript-the-core/)
