@@ -297,7 +297,7 @@ var otherFoo = bar.baz;
 otherFoo(); // caller: 全局对象
 ```
 
-## 补充一：新规范（ES5+）中的 EC
+## 新规范（ES5+）中的 EC
 
 在我一开始去找有关变量提升题目，或者说“预编译”的解释资料时，我发现不同版本的规范对这个过程有着不同的定义。一开始我还以为是我理解错了，很多概念、过程都对不上。后来我又查了更多资料，还看了 ES 的规范，才发现是新的规范里作了调整，不过基本上是大同小异。在网上能找到的资料中，尤其是国内的中文语境下，大多还是套用上文提到的 VO 的执行过程，基于 ES1/3，早已过时。
 
@@ -322,14 +322,14 @@ function foo() {
 
 ```js
 ExecutionContext = {
-  LexicalEnvironment // 指向内存中的词法环境
-  VariableEnvironment // 指向内存中的变量环境
-}
+  LexicalEnvironment, // 指向内存中的词法环境
+  VariableEnvironment, // 指向内存中的变量环境
+};
 ```
 
 它们的区别在于，`LexicalEnvironment`用于存储函数声明和`let`、`const`声明的变量，而`VariableEnvironment`仅用于存储`var`变量。
 
-词法环境（Lexical Environment），又包含了以下三个组件：
+词法环境（Lexical Environment），包含了以下三个组件：
 
 - 环境记录（Environment Record）
 - 外部环境引用（Reference to the Outer Environment）
@@ -377,10 +377,10 @@ GlobalExectionContext = {
       // 标识符绑定
       a: < uninitialized >, // 未初始化
       b: < uninitialized >,
-      multiply: < func >
+      multiply: < func >,
     },
     outer: <null>,
-    ThisBinding: <Global Object>
+    ThisBinding: <Global Object>,
   },
   VariableEnvironment: {
     EnvironmentRecord: {
@@ -389,7 +389,7 @@ GlobalExectionContext = {
       c: undefined,
     },
     outer: <null>,
-    ThisBinding: <Global Object>
+    ThisBinding: <Global Object>,
   }
 }
 ```
@@ -403,10 +403,10 @@ GlobalExectionContext = {
       Type: "Object",
       a: 20,
       b: 30,
-      multiply: < func >
+      multiply: < func >,
     },
     outer: <null>,
-    ThisBinding: <Global Object>
+    ThisBinding: <Global Object>,
   },
   VariableEnvironment: {
     EnvironmentRecord: {
@@ -414,7 +414,7 @@ GlobalExectionContext = {
       c: undefined,
     },
     outer: <null>,
-    ThisBinding: <Global Object>
+    ThisBinding: <Global Object>,
   }
 }
 ```
@@ -429,15 +429,15 @@ FunctionExectionContext = {
       Arguments: {0: 20, 1: 30, length: 2},
     },
     outer: <GlobalLexicalEnvironment>,
-    ThisBinding: <Global Object or undefined>,
+    ThisBinding: <Global Object or undefined>, // 严格模式下为 undefined
   },
   VariableEnvironment: {
     EnvironmentRecord: {
       Type: "Declarative",
-      g: undefined
+      g: undefined,
     },
     outer: <GlobalLexicalEnvironment>,
-    ThisBinding: <Global Object or undefined>
+    ThisBinding: <Global Object or undefined>,
   }
 }
 ```
@@ -460,7 +460,7 @@ FunctionExectionContext = {
       g: 20
     },
     outer: <GlobalLexicalEnvironment>,
-    ThisBinding: <Global Object or undefined>
+    ThisBinding: <Global Object or undefined>,
   }
 }
 ```
@@ -475,5 +475,10 @@ FunctionExectionContext = {
 
 1. [Understanding Execution Context and Execution Stack in Javascript](https://blog.bitsrc.io/understanding-execution-context-and-execution-stack-in-javascript-1c9ea8642dd0)
 2. [Execution context, Scope chain and JavaScript internals](https://medium.com/@happymishra66/execution-context-in-javascript-319dd72e8e2c)
-3. [ECMA-262-3 in detail. Chapter 2. Variable object.](http://dmitrysoshnikov.com/ecmascript/chapter-2-variable-object/)
-4. [JavaScript. The Core.](http://dmitrysoshnikov.com/ecmascript/javascript-the-core/)
+3. [JavaScript. The Core.](http://dmitrysoshnikov.com/ecmascript/javascript-the-core/)
+4. [JavaScript. The Core: 2nd Edition](http://dmitrysoshnikov.com/ecmascript/javascript-the-core-2nd-edition/)
+5. [ECMA-262-3 in detail. Chapter 2. Variable object.](http://dmitrysoshnikov.com/ecmascript/chapter-2-variable-object/)
+6. [ECMA-262-5 in detail. Chapter 3.2. Lexical environments: ECMAScript implementation.](http://dmitrysoshnikov.com/ecmascript/es5-chapter-3-2-lexical-environments-ecmascript-implementation/)
+7. [JavaScript: scope chain, variable objects and activation objects.](https://medium.com/@klausng/javascript-scope-chain-variable-objects-and-activation-objects-4eb017256d0b)
+8. [JS Demystified 04 — Execution Context](https://codeburst.io/js-demystified-04-execution-context-97dea52c8ac6)
+9. [ES6 规范-执行上下文](https://262.ecma-international.org/6.0/#sec-execution-contexts)
