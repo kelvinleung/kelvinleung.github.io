@@ -127,7 +127,9 @@ export default function Layout({ children }) {
 }
 ```
 
-在根目录下新建`components/`目录，把自定义的组件都丢进去方便管理。创建几个页面布局用的组件，像` NavBar``Footer `这些。然后创一个`Layout`组件，将这些用于布局的组件像上面一样都引进来。利用 Next.js 自带的`Head`组件，添加页面标题，icon，各种 SEO 的标签等。将`Layout`组件引入到`pages/_app.js`中，像下面这样包住`<Component />`，就可以实现全局的布局了。
+在根目录下新建`components/`目录，把自定义的组件都丢进去方便管理。创建几个页面布局用的组件，像` NavBar`、`Footer `这些。然后创一个`Layout`组件，将这些用于布局的组件像上面一样都引进来。
+
+再利用 Next.js 自带的`Head`组件，添加页面标题，icon，各种 SEO 的标签等。将`Layout`组件引入到`pages/_app.js`中，像下面这样包住`<Component />`，就可以实现全局的布局了。
 
 ```js
 // pages/_app.js
@@ -277,7 +279,7 @@ export default function PostList({ postsData }) {
 }
 ```
 
-最后在`pages/index.js`文件中调用`getAllPosts`并传给`PostList`。如此这番折腾之后，我们的首页终于完成了！
+最后在`pages/index.js`文件中调用`getAllPosts`并传给`PostList`。注意，最后`return`出来的数据，一定要包在`props{}`对象中。如此这番折腾之后，我们的首页终于完成了！
 
 ```js
 // pages/index.js
