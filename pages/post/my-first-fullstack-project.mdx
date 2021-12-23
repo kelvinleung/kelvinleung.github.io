@@ -1,0 +1,364 @@
+---
+title: "第一个全栈项目上线小结"
+date: "DEC 22, 2021"
+desc: "前前后后忙了差不多有一个月的时候，终于把我第一个独立完成的全栈项目（正式）上线了。过程中遇到了无数的坑，在此回顾小结一下。"
+---
+
+前前后后忙了差不多有一个月的时候，终于把我第一个独立完成的全栈项目（正式）上线了，可以戳这里看看哦：[星之光盐](http://www.autismlightsalt.com)。过程中遇到了无数的坑，在此回顾小结一下。
+
+项目背景是这样的，我老婆他们中心翻译了国外的一些资料，20 多个自闭症的干预方法，想要放到一个网站上去。刚好我也想找些项目练练手，就接了过来自己做。整个项目不复杂，就是几个静态的展示页，方便查阅这 20 多个方法，外加中心的介绍等。稍微麻烦一点的是方法页，需求是要关注服务号后才可以查看，不难，后面会有讲。
+
+整个项目最初只有我一个“全干工程师”，没有原型，没有 UI，前后端一条龙，还得自己设计样式。后面找人介绍了个设计师，应该是我见过最水的一个 UI 了，出的设计稿各种不对齐，字号也不统一，切图也不会。最后我和甲方（我老婆）商量，只照着他给的样式做了个大概，很多细节我都自己调整了一遍，还得自己改图标切图，最后还被他吐槽“还原度不高”。如果真按设计稿来还原，那简直就是个灾难……
+
+下面分为前后端两个部分来小结吧，毕竟是一个完整的全栈项目，先说后端部分：
+
+## 后端部分
+
+这次后端用的是`express`和`MySQL`，原始需求是：
+
+- 方法内容需要登录后才能查看
+- 未关注服务号的用户扫码后关注服务号并登录
+- 已关注服务号的用户扫码后登录
+- 静默地为用户生成一个账号，无需设置密码
+- 登录状态保持一周
+
+上述功能实现起来逻辑并不复杂，主要是和微信那边的交互第一次做，调试花了不少功夫。好在文档写得还行，基本上照着干问题不大。
+
+扫码登录功能用到微信公众平台一个叫“带参数的二维码”的 API，文档对其描述为：
+
+> 为了满足用户渠道推广分析和用户帐号绑定等场景的需要，公众平台提供了生成带参数二维码的接口。使用该接口可以获得多个带不同场景值的二维码，用户扫描后，公众号可以接收到事件推送。
+
+根据微信公众平台的文档，用户扫描带场景值二维码时，可能推送以下两种事件：
+
+- 如果用户还未关注公众号，则用户可以关注公众号，关注后微信会将带场景值关注事件推送给开发者。
+- 如果用户已经关注公众号，在用户扫描后会自动进入会话，微信也会将带场景值扫描事件推送给开发者。
+
+也就是说，我们可以调用微信公众平台这一接口来生成带参数（场景值）的二维码，这个参数是我们传过去的，用于唯一确定扫码的用户。用户扫码后，微信会把该事件推送到我们的服务号，并且是区分关注和未关注的（事件不同）。因此我们可以利用这个参数与事件的不同，来区分用户与用户的行为。
+
+![时序图](/images/my-first-fullstack-project/sequence.png)
+
+如图所示，整个流程是这样的：
+
+- 首先，用户点击登录按钮，这时前端会去请求服务器的`/api/get_qrcode`接口
+- 服务端接到请求，生成唯一的 UUID，存在内存中
+- 服务端用 UUID 去请求微信的`https://api.weixin.qq.com/cgi-bin/qrcode/create`接口，生成带参数的二维码
+- 服务端拿到微信返回的二维码链接，连同对应的 UUID 一并返回给前端
+- 前端拿到二维码链接，展示二维码给用户，同时开始轮询服务端的登录接口`/api/login`
+- 用户扫描二维码，微信服务器接收到用户的扫码事件
+- 微信将用户的扫码事件、OpenID 与场景值（UUID）发送给服务端处理
+- 服务端接收到微信的事件，查询数据库中是否已经有 OpenID 对应的账号，没有则创建
+- 查询/创建完账号后，服务端查询内存中是否有对应的 UUID，没有则返回错误码给前端
+- 如果服务端查询到内存中有对应的 UUID，则把账号信息返回给还在轮询的前端
+- 前端获取到用户信息后，处理登录状态
+
+### 登录相关的接口
+
+`/api/login`接口的逻辑非常简单，代码如下：
+
+```js
+const express = require("express");
+const router = express.Router();
+const authManager = require("../utils/authManager").getManager();
+
+router.get("/login", async (req, res) => {
+  const { uid } = req.query;
+  const auth = authManager.getAuth(uid);
+  if (auth) {
+    res.send({ code: 0, user: { ...auth } });
+  } else {
+    // 返回错误码给前端继续轮询
+  }
+});
+```
+
+其中的`authManager`是一个单例，用来管理登录相关的逻辑，主要方法如下：
+
+```js
+const MAX_LOAD = 1000; // “扫码”队列，限制最大等待人数
+
+class AuthManager {
+  constructor() {
+    // 用 Map 来模拟队列
+    this.data = new Map();
+  }
+  // 获取单例
+  static getManager() {
+    if (!this.instance) {
+      this.instance = new AuthManager();
+    }
+    return this.instance;
+  }
+  // 以 uid 为 key，保存用户信息在队列中，略
+  setAuth(uid, user) {}
+  // 以 uid 为 key 获取用户信息，略
+  getAuth(uid) {}
+  // 判断队列是否已满，满则尝试清除过期的请求
+  isAvailable() {
+    if (this.data.size >= MAX_LOAD) {
+      [...this.data].forEach(([key, value]) => {
+        if (Date.now() - value.createTime > 60 * 1000) {
+          this.data.delete(key);
+        }
+      });
+    }
+    return this.data.size < MAX_LOAD;
+  }
+}
+```
+
+考虑到扫码与登录轮询间存在时间差，而登录信息即使丢失，也不会产生严重问题（最多造成前端轮询超时，可以重来），就把它直接存在内存中。这里用一个`Map`来模拟队列，且设置了最大容量，防止太多人同时扫码挤爆内存。`isAvailable()`方法用于判断队列是否已满，满则遍历清除过期的请求。`uid`则作为唯一的标识链接着用户、微信与业务逻辑三者。
+
+`/api/get_qrcode`接口的核心逻辑如下：
+
+```js
+// 省略部分导入
+const { v4: uuidv4 } = require("uuid");
+const TICKET_URL = "https://api.weixin.qq.com/cgi-bin/qrcode/create";
+const QR_URL = (ticket) =>
+  `https://mp.weixin.qq.com/cgi-bin/showqrcode?ticket=${ticket}`;
+const tokenManager = require("../utils/tokenManager").getManager();
+const authManager = require("../utils/authManager").getManager();
+const QR_EXPIRE_TIME = 604800;
+
+router.get("/get_qrcode", async (req, res) => {
+  if (!authManager.isAvailable()) {
+  } // 省略队列满时的错误处理
+  const token = tokenManager.getToken();
+  const uid = uuidv4();
+  try {
+    if (!token) {
+      // 省略 token 为空时的错误处理
+    }
+    const response = await axios.post(
+      TICKET_URL,
+      {
+        expire_seconds: QR_EXPIRE_TIME,
+        action_name: "QR_STR_SCENE",
+        action_info: {
+          scene: {
+            scene_str: uid,
+          },
+        },
+      },
+      { params: { access_token: token } }
+    );
+    // 省略处理返回错误码的部分
+    const { ticket, expire_seconds } = response.data;
+    res.send({
+      code: 0,
+      uid,
+      imgUrl: QR_URL(ticket),
+      createTime: Date.now(),
+      expireTime: expire_seconds,
+    });
+  } catch (error) {
+    // 省略错误处理的部分
+  }
+});
+```
+
+`/api/get_qrcode`接口的核心逻辑就是生成 UUID，然后调用微信生成带参数二维码的接口，然后返回获取到的二维码链接，比较简单，详情可以查看[微信的文档](https://developers.weixin.qq.com/doc/offiaccount/Account_Management/Generating_a_Parametric_QR_Code.html)了解更多。其中的`tokenManager`是用来获取微信的`access_token`，调用公众号的接口时都要带上。`tokenManager`会定时刷新 token，用文件的形式保存在本地，具体逻辑比较简单在此略过，详情可以查看[微信的文档](https://developers.weixin.qq.com/doc/offiaccount/Basic_Information/Get_access_token.html)了解更多。
+
+### 处理微信消息的相关接口
+
+这次后端部分最核心的应该就是处理微信消息的接口了。接入微信公众平台后，原本在公众号后台配置的菜单和关键词等都失效了，要手工去操作实现。所有微信用户发的消息、扫码、关注、点击菜单等行为都会被转到该接口来处理。需要注意的是，这些消息需要在 5 秒内回复，微信会重试 3 次，如果不能马上处理完，可以直接回复空串。微信能接受的回复只有`"success"`与`""`（字节长度为 0 的空字符串），当时我回复了`"ok"`，结果一直提示“该公众号暂时无法提供服务，请稍后再试”，debug 了好久才发现问题。
+
+```js
+const express = require("express");
+const router = express.Router();
+const XMLJS = require("xml2js");
+const parser = new XMLJS.Parser();
+const WechatHandler = require("../utils/wechatHandler");
+
+router.post("/", (req, res) => {
+  req.on("data", (data) => {
+    parser.parseString(data.toString(), (err, result) => {
+      if (err) {
+        // 省略错误的处理
+      }
+      const body = result.xml;
+      const handler = new WechatHandler(body);
+      handler.run((message) => res.send(message));
+    });
+  });
+});
+```
+
+由于微信发过来的消息是 XML 格式的，这里用了`xml2js`这个包来处理，XML 的各字段定义可以看微信的文档：[普通消息](https://developers.weixin.qq.com/doc/offiaccount/Message_Management/Receiving_standard_messages.html)，[事件推送](https://developers.weixin.qq.com/doc/offiaccount/Message_Management/Receiving_event_pushes.html)。解开 XML 后，将事件交给`WechatHandler`来统一处理，核心代码如下：
+
+```js
+const DEFAULT_REPLY_MSG = ""; // 默认的回复内容，空串
+// 需要处理的事件
+const IMPLEMENTED_EVENTS = ["subscribe", "unsubscribe", "SCAN", "CLICK"];
+// 策略对象，省略具体实现
+const Handle = {
+  async subscribe({ key, openId, devId }, reply) {},
+  async unsubscribe({ openId }, reply) {},
+  async SCAN({ key: uid, openId }, reply) {},
+  async CLICK({ key, openId, devId }, reply) {},
+};
+
+class WechatHandler {
+  constructor(body) {
+    const { ToUserName, FromUserName, MsgType, Event, EventKey } = body;
+    this.type = MsgType[0];
+    this.openId = FromUserName[0];
+    this.devId = ToUserName[0];
+    this.event = Event ? Event[0] : null;
+    this.key = EventKey ? EventKey[0] : null;
+  }
+  run(reply) {
+    const config = {
+      openId: this.openId,
+      devId: this.devId,
+      key: this.key,
+    };
+    switch (this.type) {
+      case "event":
+        if (IMPLEMENTED_EVENTS.includes(this.event)) {
+          Handle[this.event](config, reply);
+        } else {
+          reply(DEFAULT_REPLY_MSG);
+        }
+        break;
+      default:
+        reply(DEFAULT_REPLY_MSG);
+        break;
+    }
+  }
+}
+```
+
+`WechatHandler`的主要作用是从 XML 对象中解出各个字段，再根据事件的类型作不同的处理。这里还用到了策略模式，来处理不同的`"event"`类型事件。不同的事件定义可以查看[微信文档](https://developers.weixin.qq.com/doc/offiaccount/Message_Management/Receiving_event_pushes.html)，需要注意的是“扫码”这一操作，根据用户是否已关注公号，区分为`"SCAN"`与`"subscribe"`两个事件，逻辑的处理稍有不同。
+
+以上就是后端部分的小结，下面来说说前端。
+
+## 前端部分
+
+前端这次还是用 React 来写，由于有 20 几篇静态的内容页，样式基本一致，所以决定继续用`next.js`加 MDX 来做。内容由 Word 文档转为 MDX，然后样式部分用`SASS`来写，但由于时间比较赶，所以写得很乱，开发过程中遇到过很多次 specificity 冲突导致样式覆盖或不生效的问题。这部分打算后面有时间了重构一下，不然以后要改很难维护。
+
+### 无限翻页
+
+这次首页有一个翻页组件的需求，用来展示所有方法的列表，支持无限翻页。由于是边学习边做的项目，所以这块没有直接用现成的轮子，而是自己实现了一个简单的翻页组件。
+
+方法一共有 27 个，按 3 x 3 每页，一共需要 3 页。无限翻页的原理其实很简单，在前后各加上一个“伪页”。最左边是“伪 P3”，最右边是“伪 P1”。这样当从 P1 往左滑动的时候，就可以续上形成一个闭合的“环”了。而为了从这个“伪页”继续滑动，需要在滑动到两头的“伪页”时，切换回“伪页”所对应的“真页”上。这个切换的动作发生在滑动动画结束时，并且切换过程是一个没有动画的“瞬间移动”动作。页面的结构与切换如下图所示：
+
+![翻页结构](/images/my-first-fullstack-project/carousel.png)
+
+从“伪 P3”切换到“真 P3”的“瞬间移动”：
+
+![翻页切换](/images/my-first-fullstack-project/carousel-switch.png)
+
+我做了个动画来展示这一过程，当滑动到最左边一页的“伪 P3”时，“瞬间移动”到“真 P3”处，从而形成连续的“环”：
+
+![翻页动画](/images/my-first-fullstack-project/carousel.gif)
+
+下面是翻页组件`MethodList`的核心代码：
+
+```js
+const MethodList = ({ methods }) => {
+  const [index, setIndex] = useState(1); // 当前页
+  /* ---- 省略部分 ---- */
+  const reposition = () => {
+    // 处理“瞬间移动”的逻辑
+  };
+  const itemCount = isNarrowScreen ? 6 : 9; // 每页元素的数量
+  const pageCount = Math.ceil(methods.length / itemCount) + 2; // 总页数（包括“伪页”）
+  function getMethods(index) {
+    // 左“伪页”
+    if (index === 0) {
+      const count = methods.length % itemCount;
+      return methods.slice(count === 0 ? -itemCount : -count);
+    }
+    // 右“伪页”
+    if (index === pageCount - 1) return methods.slice(0, itemCount);
+    // “真页”
+    return methods.slice(
+      (index - 1) * itemCount,
+      (index - 1) * itemCount + itemCount
+    );
+  }
+  // 简化了 JSX 的结构
+  return (
+    <div
+      className="content"
+      style={{
+        left: `-${index * 100}%`,
+        width: `${pageCount * 100}%`,
+        transition: transition ? "all 1s" : null,
+      }}
+      onTransitionEnd={reposition}
+    >
+      {[...Array(pageCount).keys()].map((i) => (
+        <div key={i} className="page">
+          {getMethods(i).map((method) => (
+            <Card key={method.id} method={method} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
+```
+
+`getMethods()`方法是方便获取每一页放置的方法列表，对于头尾两个“伪页”要做特殊处理。`reposition()`方法则是在`onTransitionEnd`事件触发时调用，判断当前如果是“伪页”，则触发“瞬间移动”的操作（更新`index`的值）。`pageCount`是每页元素的数量，会根据屏幕的宽窄来确定，实现响应式布局的需求，下面会有讲到`isNarrowScreen`的计算方法。页面间的切换用的是 CSS 的`left`属性，根据`index`来确定值。
+
+这里有个小瑕疵还没完善，当快速点击切换页面，切换到尾端的“伪页”时，继续点击切换会没反应，因为`reposition`要等待动画完成`onTransitionEnd`时才会调用。这个小 bug 等有时间了再优化。
+
+### 响应式
+
+项目要求 PC 端和手机端都可以浏览，由于都是比较简单的展示页，所以就直接做成响应式的了。用`@media`调一下布局的样式，基于`rem`去做还是比较简单的。麻烦的是首页的翻页列表，由于要求在不同分辨率下每页显示方法的数量不同，一开始是基于`grid`去做的，后来发现`grid`的兼容性不太好，测试了一些比较旧的浏览器上显示不太正常，就改回`flex`来实现了。单纯用 CSS 去布局的话比较麻烦，最后还是用 JS 来搞。
+
+主要用到的是`window.matchMedia()`这个 API，传入一个 media query 的字符串，返回一个`MediaQueryList`对象，可以用这个对象来监听页面的变化，详细用法介绍可以看 [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window/matchMedia)。
+
+这里有一个坑就是，在一些老的浏览器里，包括 Safari 14 及以下，添加监听的方法是`addListener`而不是`addEventListener`，要加个判断来处理一下。监听的主要代码如下：
+
+```js
+const [index, setIndex] = useState(1);
+// Media Query
+const [isNarrowScreen, setIsNarrorScreen] = useState(false);
+useEffect(() => {
+  const mql = window.matchMedia("(max-width: 640px)");
+  setIsNarrorScreen(mql.matches);
+  function updateIsNarrowScreen(e) {
+    setIsNarrorScreen(e.matches);
+  }
+  // Safari 14 以前，用的是 addListener / removeListener
+  if (typeof mql.addEventListener === "function") {
+    mql.addEventListener("change", updateIsNarrowScreen);
+  } else {
+    mql.addListener(updateIsNarrowScreen);
+  }
+  return () => {
+    if (typeof mql.removeEventListener === "function") {
+      mql.removeEventListener("change", updateIsNarrowScreen);
+    } else {
+      mql.removeListener(updateIsNarrowScreen);
+    }
+  };
+}, []);
+// 屏幕改变时重置第一页
+useEffect(() => setIndex(1), [isNarrowScreen]);
+```
+
+通过监听`MediaQueryList`对象来判断屏幕的宽窄，再根据`isNarrowScreen`的值来改变每页显示方法的数量。以上代码可以封装成一个`useMedia`的 hooks 来方便复用。
+
+还有一个要注意的坑是，因为`next.js`是服务端渲染与客户端渲染结合的，如果需要用到`window`对象，则需要在`useEffect()`中使用，此时才是处于客户端（浏览器环境）渲染阶段，不然会报错。
+
+### 定时器 => useInterval
+
+用户登录时展示二维码的界面是一个弹窗组件，组件显示时，前端会去轮询`/api/login`接口，因此需要一个定时器来实现。在 React 中使用定时器，会有各种奇奇怪怪的坑，涉及到 hooks 的原理、闭包等知识，Dan 的文章写得很详细了，这里不再赘述，有兴趣的可以看下[《Making setInterval Declarative with React Hooks》](https://overreacted.io/making-setinterval-declarative-with-react-hooks/)。
+
+## 其它
+
+### Nginx 配置
+
+项目最终是部署在阿里云的服务器上，后端用`pm2`来跑，前端则打包成静态文件。一开始`nginx`的配置是纯手写的，后来发现了[神器](https://www.digitalocean.com/community/tools/nginx)，简直不能更好用。
+
+### CDN
+
+项目上线后偶有反馈访问不了的情况，按理说应该不是项目本身的 bug 造成的，猜测是网络问题。目前还在观察，如果有需要的话可能会上 CDN 来优化可访问性和提升访问速度。
+
+### CI/CD
+
+现在项目发布都还是纯手动模式，打包上传然后重启服务。接下来会优化成用 Github Action 来做。
