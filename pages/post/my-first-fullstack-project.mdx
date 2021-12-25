@@ -4,6 +4,8 @@ date: "DEC 22, 2021"
 desc: "前前后后忙了差不多有一个月的时候，终于把我第一个独立完成的全栈项目（正式）上线了。过程中遇到了无数的坑，在此回顾小结一下。"
 ---
 
+![星之光盐](/images/my-first-fullstack-project/light-salt-index.png)
+
 前前后后忙了差不多有一个月的时候，终于把我第一个独立完成的全栈项目（正式）上线了，可以戳这里看看哦：[星之光盐](http://www.autismlightsalt.com)。过程中遇到了无数的坑，在此回顾小结一下。
 
 项目背景是这样的，我老婆他们中心翻译了国外的一些资料，20 多个自闭症的干预方法，想要放到一个网站上去。刚好我也想找些项目练练手，就接了过来自己做。整个项目不复杂，就是几个静态的展示页，方便查阅这 20 多个方法，外加中心的介绍等。稍微麻烦一点的是方法页，需求是要关注服务号后才可以查看，不难，后面会有讲。
@@ -307,6 +309,8 @@ const MethodList = ({ methods }) => {
 
 ### 响应式
 
+![响应式样式](/images/my-first-fullstack-project/light-salt-responsive.png)
+
 项目要求 PC 端和手机端都可以浏览，由于都是比较简单的展示页，所以就直接做成响应式的了。用`@media`调一下布局的样式，基于`rem`去做还是比较简单的。麻烦的是首页的翻页列表，由于要求在不同分辨率下每页显示方法的数量不同，一开始是基于`grid`去做的，后来发现`grid`的兼容性不太好，测试了一些比较旧的浏览器上显示不太正常，就改回`flex`来实现了。单纯用 CSS 去布局的话比较麻烦，最后还是用 JS 来搞。
 
 主要用到的是`window.matchMedia()`这个 API，传入一个 media query 的字符串，返回一个`MediaQueryList`对象，可以用这个对象来监听页面的变化，详细用法介绍可以看 [MDN](https://developer.mozilla.org/en-US/docs/Web/API/Window/matchMedia)。
@@ -353,7 +357,7 @@ useEffect(() => setIndex(1), [isNarrowScreen]);
 
 ### Nginx 配置
 
-项目最终是部署在阿里云的服务器上，后端用`pm2`来跑，前端则打包成静态文件。一开始`nginx`的配置是纯手写的，后来发现了[神器](https://www.digitalocean.com/community/tools/nginx)，简直不能更好用。
+项目最终是部署在阿里云的服务器上，后端用`pm2`来跑，前端则打包成静态文件。一开始`nginx`的配置是纯手写的，后来发现了这个[配置神器](https://www.digitalocean.com/community/tools/nginx)，简直不能更好用。
 
 ### CDN
 
@@ -361,4 +365,4 @@ useEffect(() => setIndex(1), [isNarrowScreen]);
 
 ### CI/CD
 
-现在项目发布都还是纯手动模式，打包上传然后重启服务。接下来会优化成用 Github Action 来做。
+现在项目发布都还是纯手动模式，打包上传然后重启服务。接下来会优化成用 GitHub Action 来做。
