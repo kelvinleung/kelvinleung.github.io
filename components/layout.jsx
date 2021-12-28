@@ -1,5 +1,5 @@
 import Head from "next/head";
-import NavBar from "./Navbar";
+import NavBar from "./NavBar";
 import Footer from "./Footer";
 
 const PAGE_TITLE = "Kelvin's Blog";
