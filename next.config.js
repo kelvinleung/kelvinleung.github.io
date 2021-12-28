@@ -1,6 +1,7 @@
 const path = require("path");
 const customHeaders = require("remark-heading-id");
 const withOptimizedImages = require("next-optimized-images");
+const isProd = process.env.DEPLOY_TARGET === "gh-pages";
 
 module.exports = withOptimizedImages({
   reactStrictMode: true,
@@ -9,6 +10,7 @@ module.exports = withOptimizedImages({
   images: {
     disableStaticImages: true,
   },
+  assetPrefix: isProd ? "/kelvinleung.github.io/" : "",
   webpack: (config, { defaultLoaders }) => {
     config.module.rules.push({
       test: /\.mdx?$/,
