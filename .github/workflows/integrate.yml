@@ -20,9 +20,9 @@ jobs:
           key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install and Build
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v1
         with:
-          node-version: "14"
+          node-version: "14.x"
       - run: npm install
       - run: npm run build
         env:
