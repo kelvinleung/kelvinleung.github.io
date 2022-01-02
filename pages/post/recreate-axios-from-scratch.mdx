@@ -6,7 +6,7 @@ desc: "花了两三天的时间，把 Axios 的源码过了一遍。不得不说
 
 花了两三天的时间，把 Axios 的源码过了一遍。不得不说，Axios 的源码确实很适合小白，逻辑不复杂，也能看到很多巧妙的地方。看一遍，然后自己把核心的逻辑实现一遍，确实能学到很多东西，在此记录一下。
 
-说到 Axios，不得不说 Ajax，实际上 Axios 就是一个封装 Ajax 请求的包。而 Ajax 则是 Asynchronous JavaScript and XML 的缩写。这一术语最早出现在 2005 年 Jesse James Garrett 的[一篇文章](https://web.archive.org/web/20080702075113/http://www.adaptivepath.com/ideas/essays/archives/000385.php)中。
+说到 Axios，不得不说 Ajax，实际上 Axios 就是一个封装 Ajax 请求的库。而 Ajax 则是 Asynchronous JavaScript and XML 的缩写。这一术语最早出现在 2005 年 Jesse James Garrett 的[一篇文章](https://web.archive.org/web/20080702075113/http://www.adaptivepath.com/ideas/essays/archives/000385.php)中。
 
 要知道，在盘古初开的时候，使用 JS 去动态请求数据，一般只能用`<form>`的`action`来向指定 URL 发起请求，并且这会导致整个页面刷新，体验非常的差。后来微软为了优化 Web 版的 Outlook 体验，在 IE 中增加了`XMLHttpRequest`，令到 JS 能够异步请求数据。其它浏览器厂家纷纷跟进，分别实现了自己版本的`XMLHttpRequest`功能，随后更是被纳入了 W3C 规范中。当然，将这项技术发扬光大的是我们熟知的 Gmail 与 Google Maps，并由此打开了 Web 2.0 时代的大门。
 
@@ -16,12 +16,16 @@ desc: "花了两三天的时间，把 Axios 的源码过了一遍。不得不说
 
 > Asynchronous JavaScript and XML, while not a technology in itself, is a term coined in 2005 by Jesse James Garrett, that describes a "new" approach to using a number of existing technologies together, including HTML or XHTML, CSS, JavaScript, DOM, XML, XSLT, and most importantly the XMLHttpRequest object. When these technologies are combined in the Ajax model, web applications are able to make quick, incremental updates to the user interface without reloading the entire browser page. This makes the application faster and more responsive to user actions.
 
-使用 JS 发起一个 Ajax 请求很简单，只是有点繁琐，代码如下：
+而在侠义的语境中，Ajax 一般指的就是“发起异步请求”。使用 JS 发起一个 Ajax 请求很简单，只是有点繁琐，代码如下：
 
 ```js
 const xhr = new XMLHttpRequest();
 
+// 初始化请求
 xhr.open("GET", "https://www.xxx.com/api");
+// 设置请求头
+xhr.setRequestHeader("X-Requested-With": "XMLHttpRequest");
+// 监听请求状态
 xhr.onreadystatechange = function () {
   if (xhr.readyState !== 4) {
     return;
@@ -30,5 +34,12 @@ xhr.onreadystatechange = function () {
     console.log(xhr.responseText);
   }
 };
+// 发送请求
 xhr.send();
 ```
+
+每次请求都需要如此繁琐的配置，实在没有必要。接下来我们从零开始，封装一个简单易用的 Ajax 请求库，实现简化版的 Axios。
+
+## 面向调用设计
+
+之前做产品的时候，当我们需要去设计一个功能时，总是会提到“以用户为中心”，“面向用户”这些术语。因为产品最终是要交付给用户使用，才会产生价值。因此要面向用户的使用场景、需求去设计。而编写一个库，同样需要面向“用户”设计，这个用户，指的是这个库的调用者。因此当我们设计 API 时，要考虑的是调用方是如何调用的。
