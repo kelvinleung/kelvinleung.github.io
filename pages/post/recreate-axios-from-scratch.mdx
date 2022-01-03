@@ -16,7 +16,7 @@ desc: "花了两三天的时间，把 Axios 的源码过了一遍。不得不说
 
 > Asynchronous JavaScript and XML, while not a technology in itself, is a term coined in 2005 by Jesse James Garrett, that describes a "new" approach to using a number of existing technologies together, including HTML or XHTML, CSS, JavaScript, DOM, XML, XSLT, and most importantly the XMLHttpRequest object. When these technologies are combined in the Ajax model, web applications are able to make quick, incremental updates to the user interface without reloading the entire browser page. This makes the application faster and more responsive to user actions.
 
-而在侠义的语境中，Ajax 一般指的就是“发起异步请求”。使用 JS 发起一个 Ajax 请求很简单，只是有点繁琐，代码如下：
+而在狭义的语境中，Ajax 一般指的就是“发起异步请求”。使用 JS 发起一个 Ajax 请求很简单，只是有点繁琐，代码如下：
 
 ```js
 const xhr = new XMLHttpRequest();
@@ -43,3 +43,17 @@ xhr.send();
 ## 面向调用设计
 
 之前做产品的时候，当我们需要去设计一个功能时，总是会提到“以用户为中心”，“面向用户”这些术语。因为产品最终是要交付给用户使用，才会产生价值。因此要面向用户的使用场景、需求去设计。而编写一个库，同样需要面向“用户”设计，这个用户，指的是这个库的调用者。因此当我们设计 API 时，要考虑的是调用方是如何调用的。
+
+那么作为调用者，我们希望如果调用这个简化版的 Axios 呢。当然是越简单越好，最好能做到不需要设置任何东西就可以直接发起请求。同时，能提供多种调用方式，以满足不同调用者的使用习惯，例如：
+
+```js
+// 默认情况下直接发起 GET 请求
+axios("https://www.xxx.com/api");
+// 使用 get 方法发起请求
+axios.get("https://www.xxx.com/api");
+// 指定参数
+axios({
+  method: "get",
+  url: "https://www.xxx.com/api",
+});
+```
