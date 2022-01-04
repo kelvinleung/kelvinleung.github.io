@@ -1,5 +1,5 @@
 ---
-title: "Axios 源码阅读笔记之——徒手撕 Ajax"
+title: "Axios 源码阅读笔记之——徒手撕 Ajax（一）"
 date: "DEC 30, 2021"
 desc: "花了两三天的时间，把 Axios 的源码过了一遍。不得不说，Axios 的源码确实很适合小白，逻辑不复杂，也能看到很多巧妙的地方。看一遍，然后自己把核心的逻辑实现一遍，确实能学到很多东西，在此记录一下。"
 ---
@@ -44,16 +44,241 @@ xhr.send();
 
 之前做产品的时候，当我们需要去设计一个功能时，总是会提到“以用户为中心”，“面向用户”这些术语。因为产品最终是要交付给用户使用，才会产生价值。因此要面向用户的使用场景、需求去设计。而编写一个库，同样需要面向“用户”设计，这个用户，指的是这个库的调用者。因此当我们设计 API 时，要考虑的是调用方是如何调用的。
 
-那么作为调用者，我们希望如果调用这个简化版的 Axios 呢。当然是越简单越好，最好能做到不需要设置任何东西就可以直接发起请求。同时，能提供多种调用方式，以满足不同调用者的使用习惯，例如：
+那么作为调用者，我们希望如果调用这个简化版的 Axios 呢。当然是越简单越好，最好是能不设置的就不用设置，直接就可以发起请求。同时，能提供多种调用方式，以满足不同调用者的使用习惯。Axios 的调用方法就非常多样，例如：
 
 ```js
 // 默认情况下直接发起 GET 请求
-axios("https://www.xxx.com/api");
+axios("https://www.xxx.com/api").then((res) => console.log(res.data));
+
 // 使用 get 方法发起请求
-axios.get("https://www.xxx.com/api");
+axios.get("https://www.xxx.com/api").then((res) => console.log(res.data));
+
 // 指定参数
 axios({
   method: "get",
   url: "https://www.xxx.com/api",
+}).then((res) => console.log(res.data));
+
+// 附加指定参数
+axios("https://www.xxx.com/api", { method: "get" }).then((res) =>
+  console.log(res.data)
+);
+
+// 还可以通过实例去调用
+const instance = axios.create({
+  baseURL: "https://www.xxx.com/api",
+  timeout: 1000,
+  headers: { "X-Custom-Header": "foobar" },
 });
+// 实例方法
+instance.get("login");
+```
+
+小结一下就是：
+
+- 作为函数直接调用
+- 作为对象方法调用
+- 可以创建实例，通过实例方法调用
+- 使用 Promise 链式调用
+- 方法的参数有多种形式
+- 提供缺省的默认参数
+
+## 函数与对象
+
+Axios 既可以作为函数直接调用，也可以作为一个对象，通过它的方法来调用，甚至还可以调用该对象的`create()`方法，创建出实例，然后通过实例的方法来调用。那么它是怎样做到的呢？
+
+我们知道，在 JS 中，“万物皆对象”，所以即使是函数，它实际上也是一个`Function`对象。因此`axios`的本体，是一个函数（对象），这个对象（函数）还拥有像`get()`、`create()`等方法，原理如下：
+
+```js
+// axios 作为一个函数
+const axios = function request(config) {
+  console.log("as a function");
+};
+// axios 作为一个对象
+axios.get = function get(config) {
+  console.log("as a method of an object");
+};
+
+axios(); // "as a function"
+axios.get(); // "as a method of an object"
+```
+
+由于`get()`方法实际上是`request({ method: "get" })`，因此可以用面向对象的方式来实现。简化后的代码如下：
+
+```js
+function Axios(instanceConfig) {
+  // 默认的配置
+  this.defaults = instanceConfig;
+  // 拦截器，后面有讲，先简化省略
+  this.interceptors = {};
+}
+
+Axios.prototype.request = function request(configOrUrl, config) {
+  /**
+   * 对 config 进行处理，后面有讲
+   */
+  // 将请求派发给对应的适配器，后面会有讲到
+  return dispatchRequest(config);
+};
+
+["delete", "get"].forEach(function forEachMethodWithoutData(method) {
+  Axios.prototype[method] = function (url, config) {
+    return this.request(
+      mergeConfig(config || {}, { method, url, data: (config || {}).data })
+    );
+  };
+});
+
+["post", "put"].forEach(function forEachMethodWithData(method) {
+  Axios.prototype[method] = function (url, data, config) {
+    return this.request(mergeConfig(config || {}, { method, url, data }));
+  };
+});
+```
+
+请求函数`request()`挂载在`Axios`的原型上，函数内部调用了`dispatchRequest()`函数，作用是将请求派发给对应的适配器，后面会有讲到。`Axios`的原型上还挂载有`delete()`、`get()`、`post()`、`put()`等常用的 HTTP 请求方法，它们被分成两组，区别是请求时是否带有`data`。
+
+通过`Axios`构造函数，我们可以生成`axios`对象（函数）：
+
+```js
+function createInstance(defaultConfig) {
+  const context = new Axios(defaultConfig);
+  // instance 即 request
+  const instance = Axios.prototype.request.bind(context);
+  // 将 Axios 原型上的方法加到 instance 上
+  utils.extend(instance, Axios.prototype, context);
+  // 将 Axios 实例上的属性加到 instance 上
+  utils.extend(instance, context);
+  // instance 即为函数，又为对象
+  return instance;
+}
+
+// 默认的参数 defaults
+const axios = createInstance(defaults);
+
+axios.create = function create(instanceConfig) {
+  // mergeConfig 方法用于合并配置，后面有讲
+  return createInstance(mergeConfig(axios.defaults, instanceConfig));
+};
+```
+
+工具方法`extend(a, b)`的作用是将`b`对象自有的属性与方法，拷贝给`a`对象，简化版的实现如下：
+
+```js
+function extend(a, b, thisArg) {
+  for (const key in b) {
+    if (b.hasOwnProperty(key)) {
+      if (thisArg && typeof b[key] === "function") {
+        a[key] = b[key].bind(thisArg);
+      } else {
+        a[key] = b[key];
+      }
+    }
+  }
+  return a;
+}
+```
+
+实际上`axios`的本体（`instance`）就是`Axios.prototype.request()`函数（对象）。它通过`extend()`方法获得了`Axios`原型上的所有方法及 Axios 实例`context`上的所有属性（即`defaults`与`interceptors`等属性）。它自身还增加了`create()`方法，该方法通过调用`createInstance()`方法，利用传入的配置参数，生成了新的`axios`对象。
+
+因此，我们最终使用的`axios`，既是一个函数，同时也是一个带有各种别名方法的对象。`Axios`、`axios`的关系如下图：
+
+## 默认参数
+
+人都是懒的，为了能达到“能不配置就不配置”的目的，我们需要提供默认的参数配置项。初始化`axios`对象时传入的`defaults`对象中就包含了所有参数的默认值，如超时时间、请求头等。
+
+```js
+const defaults = {
+  /*
+   * 省略
+   */
+  timeout: 0,
+  headers: {
+    common: {
+      Accept: "application/json, text/plain, */*",
+    },
+  },
+};
+// 初始化时传入默认参数
+const axios = createInstance(defaults);
+```
+
+我们在发起请求时，如果不指定方法类型，默认是“GET”方法，同时，请求的参数，既可以是`url`，也可以是`config`对象，这些逻辑的处理都是在`Axios.prototype.request()`方法中实现的：
+
+```js
+Axios.prototype.request = function request(configOrUrl, config) {
+  // 第一个参数为 string 时（url）
+  if (typeof configOrUrl === "string") {
+    config = config || {};
+    config.url = configOrUrl;
+  } else {
+    config = configOrUrl || {};
+  }
+  // 必须要有 url，否则报错
+  if (!config.url) {
+    throw new Error("Url not valid");
+  }
+  // 设置 method 的默认值
+  if (config.method) {
+    config.method = config.method.toLowerCase();
+  } else if (this.defaults.method) {
+    config.method = this.defaults.method.toLowerCase();
+  } else {
+    config.method = "get";
+  }
+  // 合并配置
+  config = mergeConfig(this.defaults, config);
+  // 将请求派发给对应的适配器，后面会有讲到
+  return dispatchRequest(config);
+};
+```
+
+其中`mergeConfig(a, b)`方法用于合并配置，`b`中与`a`相同的配置项，会直接覆盖（`b`优先于`a`），方法的简化版实现如下：
+
+```js
+function mergeConfig(config1, config2) {
+  return { ...config1, ...config2 };
+}
+```
+
+`mergeConfig()`方法在很多地方有使用到，这些配置的优先级如下：
+
+```js
+/* 最低：不设置时，默认 timeout 为 0
+ * defaults = { timeout: 0 }
+ */
+// 低
+axios.defaults.timeout = 1000;
+// 中
+const instance = axios.create({ timeout: 2000 });
+// 高
+instance.defaults.timeout = 3000;
+// 最高
+instance.get("https://www.xxx.com/api", { timeout: 5000 });
+```
+
+## 适配器
+
+## Promisify
+
+原生的`XMLHttpRequest`使用回调函数来监听各种事件，容易造成回调地狱，也不利于链式调用。Promise 化（Promisify）是常见的面试题，原理很简单，当成功时`resolve()`，当失败/出错时`reject()`。我们把上面原生的 xhr 请求 Promise 化，代码如下：
+
+```js
+function xhrAdapter(config) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open(config.method.toUpperCase(), config.url);
+    request.onreadystatechange = function handleLoad() {
+      if (request.readyState !== 4) {
+        return;
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve(request.response);
+      } else {
+        reject(request.status);
+      }
+    };
+    request.send();
+  });
+}
 ```
