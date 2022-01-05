@@ -183,6 +183,8 @@ function extend(a, b, thisArg) {
 
 因此，我们最终使用的`axios`，既是一个函数，同时也是一个带有各种别名方法的对象。`Axios`、`axios`的关系如下图：
 
+![relation](/images/recreate-axios-from-scratch/relation.png)
+
 ## 默认参数
 
 人都是懒的，为了能达到“能不配置就不配置”的目的，我们需要提供默认的参数配置项。初始化`axios`对象时传入的`defaults`对象中就包含了所有参数的默认值，如超时时间、请求头等。
@@ -241,7 +243,7 @@ function mergeConfig(config1, config2) {
 }
 ```
 
-`mergeConfig()`方法在很多地方有使用到，这些配置的优先级如下：
+`mergeConfig()`方法在很多地方有使用到，因此这些配置间会相互覆盖，它们间的优先级如下：
 
 ```js
 /* 最低：不设置时，默认 timeout 为 0
@@ -259,9 +261,50 @@ instance.get("https://www.xxx.com/api", { timeout: 5000 });
 
 ## 适配器
 
+Axios 既可以在浏览器环境中使用，也可以在 Node 中使用，原因是使用了适配器，当我们通过`dispatchRequest()`方法派发请求时，会先根据不同的环境，加载不同的请求方法。其中浏览器端使用的是`XMLHttpRequest`，而在 Node 中则使用的是`http`模块。
+
+在这里，我们先不考虑 Node 环境。但考虑到练手的需要，适配器的部分还是实现了，但直接忽略掉环境判断的部分，默认使用`XMLHttpRequest`适配器，简化后的代码如下：
+
+```js
+function dispatchRequest(config) {
+  const adapter = config.adapter || defaults.adapter;
+  return adapter(config).then(
+    (response) => {
+      return response;
+    },
+    (reason) => {
+      return Promise.reject(reason);
+    }
+  );
+}
+```
+
+可以看到，请求从`request()`到`dispatchRequest()`，最终是由`adapter()`来发起。之所以这么绕，原因一个是为了使用拦截器，这个后面再讲；另一个则是适配不同的环境。
+
+这里再补充一点，对于环境的判断，Axios 中是利用了 Node 中的`process`，代码可以在源码中的`lib/defaults.js`文件中找到：
+
+```js
+function getDefaultAdapter() {
+  var adapter;
+  if (typeof XMLHttpRequest !== "undefined") {
+    // For browsers use XHR adapter
+    adapter = require("./adapters/xhr");
+  } else if (
+    typeof process !== "undefined" &&
+    Object.prototype.toString.call(process) === "[object process]"
+  ) {
+    // For node use HTTP adapter
+    adapter = require("./adapters/http");
+  }
+  return adapter;
+}
+```
+
 ## Promisify
 
-原生的`XMLHttpRequest`使用回调函数来监听各种事件，容易造成回调地狱，也不利于链式调用。Promise 化（Promisify）是常见的面试题，原理很简单，当成功时`resolve()`，当失败/出错时`reject()`。我们把上面原生的 xhr 请求 Promise 化，代码如下：
+上面提到，最终发起请求的，是适配器，对于浏览器环境，就是`xhrAdapter()`，其实就是使用`XMLHttpRequest`来发起请求（绕了这么久，终于绕回来了）。
+
+原生的`XMLHttpRequest`使用回调函数来监听各种事件，容易造成回调地狱，也不利于链式调用。我们需要将其转化为更现代、更“科学”的 Promise，这个过程，叫做 Promise 化（Promisify）。Promisify 是常见的面试题，原理很简单，当成功时`resolve()`，当失败/出错时`reject()`。我们把上面原生的 xhr 请求 Promise 化，代码如下：
 
 ```js
 function xhrAdapter(config) {
@@ -273,8 +316,10 @@ function xhrAdapter(config) {
         return;
       }
       if (request.status >= 200 && request.status < 300) {
+        // 当返回码为 2xx 时即成功
         resolve(request.response);
       } else {
+        // 否则为失败
         reject(request.status);
       }
     };
@@ -282,3 +327,5 @@ function xhrAdapter(config) {
   });
 }
 ```
+
+到此为止，我们就完成了`XMLHttpRequest`的简单封装，实现了一个简化版的 Axios。完整代码可以在[这里查看](https://github.com/kelvinleung/re-create.js/tree/main/axios)。
