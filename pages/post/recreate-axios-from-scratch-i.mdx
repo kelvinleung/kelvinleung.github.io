@@ -328,4 +328,10 @@ function xhrAdapter(config) {
 }
 ```
 
-到此为止，我们就完成了`XMLHttpRequest`的简单封装，实现了一个简化版的 Axios。完整代码可以在[这里查看](https://github.com/kelvinleung/re-create.js/tree/main/axios)。
+## 小结
+
+到此为止，我们就完成了`XMLHttpRequest`的简单封装，实现了一个简化版的 Axios。整个请求的发起流程如下图所示：
+
+![flow](/images/recreate-axios-from-scratch/flow.png)
+
+完整代码可以在[这里查看](https://github.com/kelvinleung/re-create.js/tree/main/axios)。接下来我们还要手撕**拦截器**与**取消请求**，详见第二部分。
