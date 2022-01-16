@@ -1,0 +1,257 @@
+---
+title: "Axios 源码阅读笔记之——徒手撕 Ajax（二）"
+date: "JAN 14, 2022"
+desc: "上一次我们已经封装了一个“简陋版”的 Axios，实现了配置化，多种方式调用，Promise 化等功能。除此以外，Axios 还有两个很重要的功能：拦截器、取消请求。这一次我们先来实现一个拦截器的功能。"
+---
+
+[上一次](/post/recreate-axios-from-scratch-i)我们已经封装了一个“简陋版”的 Axios，实现了配置化，多种方式调用，Promise 化等功能。除此以外，Axios 还有两个很重要的功能：
+
+- 拦截器
+- 取消请求
+
+这一次我们先来实现一个拦截器的功能。
+
+## 单个请求拦截器
+
+我们知道，Ajax 请求可以粗略地分为三个阶段：
+
+1. 请求前，处理配置等
+2. 请求中，等待服务器响应
+3. 响应，得到结果或异常
+
+拦截器其实就是作用在请求前、后（响应）这两个阶段的“钩子”，允许我们对请求的配置、请求的响应、异常等进行处理。先拿请求的拦截器来举例，比方说我们现在有个需求，希望在请求前，能够先对请求的数据进行某种特定的编码，那么这段逻辑我们可以添加在`request()`函数中。但是这样一来，逻辑就被写死，每次修改都需要改动`request()`函数的代码，不符合“开放封闭”的原则。
+
+因此，我们得把拦截器抽取出来，放在另一个地方，暴露一个方法用于设置拦截器，然后在请求前调用进行处理，再将处理后的结果用于请求。根据这个思路，可以像下面这样实现：
+
+```js
+function Axios(instanceConfig) {
+  // 默认的配置
+  this.defaults = instanceConfig;
+  // 拦截器，在请求前调用
+  this.requestInterceptor = null;
+}
+
+Axios.prototype.setRequestInterceptor = function (interceptor) {
+  this.requestInterceptor = interceptor;
+};
+
+Axios.prototype.request = function request(configOrUrl, config) {
+  /**
+   * 省略
+   */
+  // 先调用拦截器进行处理
+  const newConfig = this.requestInterceptor(config);
+  return dispatchRequest(newConfig);
+};
+
+// 假设函数 encode() 返回特殊编码后的数据
+function encode(config) {}
+
+// 设置拦截器
+axios.setRequestInterceptor(encode);
+```
+
+## 多个请求拦截器
+
+看上去还不错，那么假如我们的需求不只是编码，还希望在编码后对数据进行压缩呢？简单，把`interceptor`属性换成数组，然后在请求前遍历一下，像这样：
+
+```js
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  // 拦截器，改成数组
+  this.requestInterceptors = [];
+}
+
+Axios.prototype.setRequestInterceptor = function (interceptor) {
+  // 按顺序压进数组中
+  this.requestInterceptors.push(interceptor);
+};
+
+Axios.prototype.request = function request(configOrUrl, config) {
+  /**
+   * 省略
+   */
+  // 遍历所有拦截器
+  while (this.requestInterceptors.length) {
+    const interceptor = this.requestInterceptors.shift();
+    config = interceptor(config);
+  }
+  return dispatchRequest(config);
+};
+
+// 假设函数 encode() 返回特殊编码后的数据
+function encode(config) {}
+
+// 设置拦截器
+axios.setRequestInterceptor(encode);
+```
+
+## 响应拦截器
+
+对于响应拦截器，也是同样的道理，增加一个`responseInterceptors`属性用于保存响应拦截器，再增加一个`setRe sponseInterceptor()`方法来设置响应拦截器。
+
+与请求拦截器所不同的是，响应拦截器的调用的时机应该放在请求之后，也就是`dispatchRequest()`方法之后执行。`dispatchRequest()`方法返回的是一个 Promise，因此响应拦截器要在`dispatchRequest().then()`中去遍历执行。简化的代码框架如下：
+
+```js
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  this.requestInterceptors = [];
+  this.responseInterceptors = [];
+}
+
+Axios.prototype.setRequestInterceptor = function (interceptor) {
+  this.requestInterceptors.push(interceptor);
+};
+
+Axios.prototype.setResponseInterceptor = function (interceptor) {
+  this.responseInterceptors.push(interceptor);
+};
+
+Axios.prototype.request = function request(configOrUrl, config) {
+  /**
+   * 省略
+   */
+  while (this.requestInterceptors.length) {
+    const interceptor = this.requestInterceptors.shift();
+    config = interceptor(config);
+  }
+  let res;
+  dispatchRequest(config).then((res) => {
+    while (this.responseInterceptors.length) {
+      const interceptor = this.responseInterceptors.shift();
+      res = interceptor(res);
+    }
+  });
+  return res;
+};
+
+// 假设函数 encode() 返回特殊编码后的数据
+function encode(config) {}
+// 假设函数 decode() 返回特殊解码后的数据
+function decode(res) {}
+
+// 设置拦截器
+axios.setRequestInterceptor(encode);
+axios.setResponseInterceptor(decode);
+```
+
+## Promise 链
+
+嗯，上面的代码看上去貌似就不太优雅……请求拦截器和响应拦截器被分成了两块，但它们又有着相似的逻辑。同样是把某个东西加工后返回，然后交给下一个按顺序遍历执行，这种“链式调用”的场景，你会想到什么？没错，就是`Promise`。
+
+通过 Promise，我们可以将这些处理的逻辑串连起来。并且使用 Promise 还有个好处就是异常的处理，我们可以把拦截器拆成一对，分别处理成功和失败的情况：
+
+```js
+Promise.resolve(config)
+  .then(encode, onError1)
+  .then(zip, onError2)
+  .request(config)
+  .then(unzip, onError3)
+  .then(decode, onError4);
+```
+
+通过下面的图，我们可以更清晰地看到整个请求的链路：
+
+![chain](/images/recreate-axios-from-scratch/chain.png)
+
+利用 Promise，我们能够将让拦截器处理异步的操作，同时还能够处理每个节点的异常。更妙的是，我们将请求拦截器、请求方法、响应拦截器一块放到一个数组中，通过遍历，每次取出一对方法，便能很优雅地利用 Promise 的`then()`方法来串连起它们。对于请求方法的那一对，我们用`undefined`来占位，则请求的异常将穿透给其下一对，即响应拦截器来处理。
+
+![chain-array](/images/recreate-axios-from-scratch/chain-array.png)
+
+## 小结
+
+综上所述，我们将拦截器相关的方法抽取成一个类`InterceptorManager`，按新的思路调整后的简化代码如下：
+
+```js
+class InterceptorManager {
+  constructor() {
+    this.handlers = [];
+  }
+
+  use(fulfilled, rejected) {
+    this.handlers.push({ fulfilled, rejected });
+    // 下标作为 id，用于 eject
+    return this.handlers.length - 1;
+  }
+
+  eject(id) {
+    if (this.handlers[id]) {
+      this.handlers[id] = null;
+    }
+  }
+
+  // null 时不处理
+  forEach(fn) {
+    this.handlers.forEach((interceptor) => {
+      if (interceptor) {
+        fn(interceptor);
+      }
+    });
+  }
+}
+
+function Axios(instanceConfig) {
+  this.defaults = instanceConfig;
+  this.interceptors = {
+    request: new InterceptorManager(),
+    response: new InterceptorManager(),
+  };
+}
+
+Axios.prototype.request = function request(configOrUrl, config) {
+  /**
+   * 省略
+   */
+  // 拼接成 [请求拦截器, 请求, 响应拦截器] 请求链
+  // undefined 的作用是“占位”，保证两两一组
+  const chain = [dispatchRequest, undefined];
+  // 请求拦截器“链”，加到头部
+  this.interceptors.request.forEach(({ fulfilled, rejected }) => {
+    chain.unshift(fulfilled, rejected);
+  });
+  // 响应拦截器“链”，加到尾部
+  this.interceptors.response.forEach(({ fulfilled, rejected }) => {
+    chain.push(fulfilled, rejected);
+  });
+
+  // 启动链条
+  let promise = Promise.resolve(config);
+
+  while (chain.length) {
+    // 遍历请求链，两两一组链式调用
+    promise = promise.then(chain.shift(), chain.shift());
+  }
+
+  return promise;
+};
+```
+
+到此为止，我们就完成了简单拦截器的功能，使用方式也很简单，我们只需设置一下拦截器，然后正常发起请求即可：
+
+```js
+// 添加请求拦截器
+axios.interceptors.request.use(
+  function (config) {
+    // 请求前处理的逻辑放在这里
+    return config;
+  },
+  function (error) {
+    // 异常处理的逻辑放在这里
+    return Promise.reject(error);
+  }
+);
+
+// 添加响应拦截器
+axios.interceptors.response.use(
+  function (response) {
+    // 对响应结果的处理逻辑放在这里
+    return response;
+  },
+  function (error) {
+    // 异常处理的逻辑放在这里
+    return Promise.reject(error);
+  }
+);
+```
+
+完整代码可以在[这里查看](https://github.com/kelvinleung/re-create.js/tree/main/axios)。接下来我们还要手撕**取消请求**，详见第三部分。
