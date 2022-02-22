@@ -1,0 +1,201 @@
+---
+title: "Axios 源码阅读笔记之——徒手撕 Ajax（三）"
+date: "Feb 17, 2022"
+desc: "在上一年（过完年相当于去年……）的文章中，我们实现了“简陋版” Axios 的拦截器功能。这一次，我们来看看取消请求的功能该如何实现。"
+---
+
+在上一年（过完年相当于去年……）的文章中，我们实现了“简陋版” Axios 的拦截器功能。这一次，我们来看看取消请求的功能该如何实现。
+
+通过前面的文章我们知道，Axios 实际上是封装了 XHR 来发起 Ajax 请求的。对于原生的 XHR，我们可以通过其自带的`abort()`方法来来执行取消的操作：
+
+```js
+const xhr = new XMLHttpRequest();
+xhr.open("GET", "https://www.xxx.com/api");
+xhr.send();
+
+// 取消请求
+xhr.abort();
+```
+
+而真正的 XHR 请求，则是被层层包裹，依次通过`request()`、`dispatchRequest()`、`xhrAdapter()`等方法，最终调用包裹在 Promise 中的`XMLHttpRequest()`方法。那么我们该怎样取消一个 Promise 呢？
+
+## “取消” 一个 Promise
+
+我们知道，Promise 一共有三种状态：pending、fulfilled、rejected，后两者统称为“settled/resolved”。Promise 只能从默认的 pending 状态转为 fulfilled 或 rejected，又或者一直保持在 pending 状态中，无法被取消。虽然 Promise 无法手动取消，但我们可以通过调用`resolve()`或`reject()`方法来改变其状态，从而强行“中止”该 Promise。大致原理如下：
+
+```js
+let cancel;
+
+const axios = new Promise((resolve, reject) => {
+  cancel = reject; // 把 reject 方法暴露到外面
+  setTimeout(() => {
+    resolve("done");
+  }, 3000);
+});
+
+axios
+  .then((done) => {
+    console.log(done); // 不会触发
+  })
+  .catch((err) => {
+    console.error(err); // cancelled manually
+  });
+
+cancel("cancelled manually"); // 相当于调用了 reject()
+```
+
+虽然“中止”和“取消”不同，但这样做一样达到了提前令 Promise 停止下来的目的。我们只需要做调用调用`resolve()`（或`reject()`）方法的同时（或者之后，也就是在`then()`方法中调用），调用`xhr.abort()`方法，即可实现取消 XHR 请求的效果。
+
+Axios 正是通过该原理，利用`CancelToken`来改变 Promise 状态，从而取消其内部的 XHR 请求。Axios 的这套`CancelToken`的 API 则是来自于一套被撤回的 TC39 提案，有兴趣的可以看看[cancelable promises proposal](https://github.com/tc39/proposal-cancelable-promises)。
+
+## Axios 中取消请求的用法
+
+照例，我们先来看看官方文档中 Axios 取消的用法，方法一，通过`CancelToken.source()`工厂方法：
+
+```js
+const CancelToken = axios.CancelToken;
+const source = CancelToken.source();
+
+axios
+  .get("/user/12345", {
+    cancelToken: source.token,
+  })
+  .catch(function (thrown) {
+    if (axios.isCancel(thrown)) {
+      console.log("Request canceled", thrown.message);
+    } else {
+      // handle error
+    }
+  });
+
+axios.post(
+  "/user/12345",
+  {
+    name: "new name",
+  },
+  {
+    cancelToken: source.token,
+  }
+);
+
+// cancel the request (the message parameter is optional)
+source.cancel("Operation canceled by the user.");
+```
+
+方法二，直接通过`CancelToken()`构造函数：
+
+```js
+const CancelToken = axios.CancelToken;
+let cancel;
+
+axios.get("/user/12345", {
+  cancelToken: new CancelToken(function executor(c) {
+    // An executor function receives a cancel function as a parameter
+    cancel = c;
+  }),
+});
+
+// cancel the request
+cancel();
+```
+
+## 暴露“取消”方法
+
+可以看出，关键在于`CancelToken()`构造函数参数`executor(c)`中的这个`c`。实际上，通过工厂方法`CancelToken.source()`所生成的`source`中的`cancel()`方法，同样也是指向这个`c`。这个神奇的`c`，究竟是什么玩意？
+
+别急，让我们先来看看 Axios 源码中的这个`CancelToken`是何方神圣：
+
+```js
+function CancelToken(executor) {
+  if (typeof executor !== "function") {
+    throw new TypeError("executor must be a function.");
+  }
+
+  var resolvePromise;
+  this.promise = new Promise(function promiseExecutor(resolve) {
+    resolvePromise = resolve;
+  });
+
+  var token = this;
+  executor(function cancel(message) {
+    if (token.reason) {
+      return;
+    }
+    token.reason = new Cancel(message);
+    resolvePromise(token.reason);
+  });
+}
+```
+
+从构造函数`CancelToken()`中可以看出，其实例中有一个`promise`属性，它将`resolve()`方法暴露给了`resolvePromise`。构造函数`CancelToken()`的参数`executor`，在生成实例时会调用。也就是说上面用例二中的`executor(c)`方法在生成 token 实例时会执行，实际上就是执行了：
+
+```js
+cancel = c;
+```
+
+这里的`c`，就是构造函数中定义的`cancel(message)`方法，就相当于：
+
+```js
+cancel = function cancel(message) {
+  if (token.reason) {
+    return;
+  }
+  token.reason = new Cancel(message);
+  resolvePromise(token.reason);
+};
+```
+
+所以，绕了这么一大圈，`CancelToken`做的事情，就是将实例中`promise`的`resolve()`方法给暴露出去，当我们调用`cancel()`方法时，会调用`resolvePromise()`方法，最终导致实例`promise`属性的状态发生改变。
+
+## “链”锁反应
+
+那么问题又来了，这个`promise`的作用又是什么，为什么要这么绕地把它的`resolve()`方法给暴露出去？说到暴露方法，是否有点熟悉？没错，这正是上面提到的 Promise 的“取消”（中止）方法，将`resolve()`方法暴露，就是为了能够在外部“取消”这个 Promise。
+
+我们知道，Promise 是可以链式调用的，只需要在`promise`的`then()`方法中，调用`xhr.abort()`方法，即可实现取消功能。而在 Axios 中，就是这样实现的：
+
+```js
+// 在 xhrAdapter.js 中
+function xhrAdapter(config) {
+  const { cancelToken } = config;
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    /*
+      省略代码
+    */
+    request.onreadystatechange = function handleLoad() { /* 省略 */ }
+    request.onabort = function handleAbort() { /* 省略 */ }
+    request.onerror = function handleError() { /* 省略 */ }
+
+    if (cancelToken) {
+      cancelToken.promise.then((cancel) => {
+        reject(cancel);
+        xhr!.abort();
+        xhr = null;
+      });
+    }
+    request.send();
+  });
+}
+```
+
+`config`中的`cancelToken`属性，是一个`CancelToken`实例，在调用`xhrAdapter()`方法时，会判断是否设置了该属性，若有，则在其`promise`属性的`then()`方法中，调用包裹 XHR 请求的 Promise 的`reject()`方法，来中止该 Promise 的继续执行，同时调用`xhr.abort()`方法，取消 XHR 请求。
+
+调用`reject(cancel)`方法时的`cancel`参数，是一个`Cancel`实例：
+
+```js
+function Cancel(message) {
+  this.message = message;
+}
+
+Cancel.prototype.__CANCEL__ = true;
+```
+
+我们可以通过`isCancel()`函数来判断`reject()`方法抛出的错误是否为`Cancel`实例：
+
+```js
+function isCancel(value) {
+  return !!(value && value.__CANCEL__);
+}
+```
+
+如此，我们便实现了取消请求的功能。
