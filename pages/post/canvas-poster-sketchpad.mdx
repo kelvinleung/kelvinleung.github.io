@@ -1,0 +1,329 @@
+---
+title: "项目小结：基于 Canvas 的海报编辑小程序"
+date: "May 6, 2022"
+desc: "之前接了个项目，一个学生的毕业设计，需要做一个简单的海报编辑小程序。海报编辑那部分，需求是要支持添加背景、图片素材、文字等，可以拖动、缩放。其实 GitHub 上有找到类似的，但为了学习，还是自己从零开始写起。项目是基于 Canvas 实现的，中间也踩了不少坑，记录在这里。"
+---
+
+之前接了个项目，一个学生的毕业设计，需要做一个简单的海报编辑小程序。海报编辑那部分，需求是要支持添加背景、图片素材、文字等，可以拖动、缩放。其实 GitHub 上有找到类似的，但为了学习，还是自己从零开始写起。项目是基于 Canvas 实现的，中间也踩了不少坑，记录在这里。
+
+## Canvas 的尺寸问题
+
+### 宽高
+
+`<canvas>` 自身有 `width` 与 `height` 属性，表示其宽度，默认情况下为 `300px * 150px`。此外，通过 CSS 也可以设置 `<canvas>` 的宽高，但这两者的意义是不一样的。
+
+CSS 控制的是 `<canvas>` 在页面中显示的实际大小，而 `<canvas>` 自身的宽高则是用来控制“画布”的大小。可以用一张放在桌面上的可伸缩的纸来表示这个关系：`<canvas>` 自身的宽高表示这张纸在未伸缩状态下的大小，而 CSS 的宽高则表示桌面的大小，`<canvas>` 会伸缩至填满整个桌面大小。
+
+因此，我们需要保证通过 CSS 设置的大小与 `<canvas>` 自身的大小保持相同的比例，否则画出来的图像会被拉伸变形。
+
+### 缩放
+
+现在手机屏幕的分辨率越来越高，`1px` 实际上是由不只 1 个物理像素来进行显示，这个比例叫 DPR（Device Pixel Ratio）。比如 iPhone 12，屏幕的 CSS 宽度为 375px，其 DPR 为 3，即一个 CSS 像素由 3 个物理像素来表示。
+
+如果我们把 `<canvas>` 的宽高均设置为 `375px`，那么实际上每个像素点所对应的将是 9 个物理像素，相当于被拉伸了 9 倍，显示上会很“模糊”。
+
+所以，对于高分辨率手机来说，最好是将 `<canvas>` “放大”，使之大小与屏幕的实际分辨率对应，才能显示出“高清”的效果。
+
+在小程序中，可以通过以下方法来设置：
+
+```js
+const sysInfo = wx.getSystemInfoSync();
+// 缩放 canvas，保持与物理像素一致，保证图片的高清
+const dpr = sysInfo.pixelRatio;
+this.canvas.width = width * dpr;
+this.canvas.height = height * dpr;
+// 设置缩放因子，屏幕像素转为物理像素
+this.ctx.scale(dpr, dpr);
+```
+
+## 画布上的“元素”
+
+我们用一个类，`Graph`，来表示将要添加到画布上的元素，可以是图片或文字，它有以下属性：
+
+```js
+// 坐标属性
+this.x = x;
+this.y = y;
+// 元素的类型，'text'，'image'
+this.type = type;
+// 文本内容
+this.text = text;
+// 字体大小
+this.fontSize = fontSize;
+// 图片
+this.image = image;
+// canvas context
+this.ctx = ctx;
+// 标记是否选中
+this.selected = true;
+// 元素的操作
+this.action = false;
+```
+
+另外，元素的宽高，则根据类型的不同，动态计算得到。对于图片类型的元素，在添加时需要进行缩放，以保证新添加的图片初始的大小统一。因为图片的比例不定，我们统一限制图片长边的长度，将图片按比例进行缩放，计算其宽高：
+
+```js
+// 初始化图片，按比例缩放
+if (type === "image") {
+  const { width, height } = image;
+  const ratio = width / height;
+  // 长边按比例缩放默认大小，且不能小于最小宽度
+  if (width >= height) {
+    const newHeight = DEFAULT_IMAGE_SIZE / ratio;
+    if (newHeight < MIN_IMAGE_SIZE) {
+      this.height = MIN_IMAGE_SIZE;
+      this.width = MIN_IMAGE_SIZE * ratio;
+    } else {
+      this.width = DEFAULT_IMAGE_SIZE;
+      this.height = newHeight;
+    }
+  } else {
+    const newWidth = DEFAULT_IMAGE_SIZE * ratio;
+    if (newWidth < MIN_IMAGE_SIZE) {
+      this.width = MIN_IMAGE_SIZE;
+      this.height = MIN_IMAGE_SIZE / ratio;
+    } else {
+      this.height = DEFAULT_IMAGE_SIZE;
+      this.width = DEFAULT_IMAGE_SIZE * ratio;
+    }
+  }
+  this.centerX = this.x + this.width / 2;
+  this.centerY = this.y + this.height / 2;
+}
+```
+
+对于文字类型的元素，则在每次绘制的时候，根据当前的字号大小，重新计算其宽高：
+
+```js
+// 文本元素需要根据当前字号，重新计算各项属性值
+this.ctx.font = `${this.fontSize}px sans-serif`;
+this.ctx.textAlign = "center";
+this.ctx.textBaseline = "middle";
+const textWidth = this.ctx.measureText(this.text).width;
+const textHeight = this.fontSize;
+this.width = textWidth;
+this.height = textHeight;
+this.centerX = this.x + this.width / 2;
+this.centerY = this.y + this.height / 2;
+```
+
+## 让元素“动”起来
+
+上面说了，Canvas 就像一张纸，而纸上画的东西是固定的，怎样才能令到画布上的元素能够实现移动、缩放、选中等操作呢？
+
+![帧](/images/canvas-poster-sketchpad/frame.jpg)
+
+其实，电影的画面也是“静态”的，只是通过快速的切换不同的静态画面，从而产生“动”起来的错觉。比方说一只豹子，如果我们按每秒 30 帧的速率，在每一帧中，稍微改变豹的位置，使其往右移动 1 个像素，那么当这些静态的帧连续进行切换的时候，这只豹子看上去就是在往右移动了。
+
+让 Canvas 上的元素动起来，原理也是一样。我们利用一个数组来记录所有添加到画布中的元素，当有新元素被添加进来时，或者这些元素的某些属性产生变化时（比如坐标移动大小改变等），就遍历一遍数组，把每个元素重新按顺序绘制出来。这样一来，Canvas 看上去，就是“动”的了。
+
+### 添加元素
+
+监听元素的改变，将新元素推入用于记录所有元素的数组中，并触发重绘，代码如下：
+
+```js
+observers: {
+  // 监听是否有新的元素添加进来
+  graph(config) {
+    if (!config) return
+    // 添加新元素前，先重置所有已存在元素的选中状态
+    this.graphData.forEach(graph => graph.selected = false)
+    // 新增元素
+    if (config.type === 'image') {
+      const image = this.canvas.createImage()
+      image.onload = () => {
+        const graph = new Graph({...config, image}, this.ctx)
+        this.graphData.push(graph)
+        this.render()
+      }
+      image.src = config.url
+    } else {
+      const graph = new Graph(config, this.ctx)
+      this.graphData.push(graph)
+      this.render()
+    }
+  },
+  // 监听背景是否有改变
+  background(url) {
+    if (!url) return
+    const image = this.canvas.createImage()
+    image.onload = () => {
+      this.backgroundImage = image
+      this.render()
+    }
+    image.src = url
+  }
+}
+```
+
+当监听到有变化时，调用的绘制函数代码如下：
+
+```js
+render() {
+  // 清空画布
+  this.ctx.clearRect(
+    0,
+    0,
+    this.canvasSize.width,
+    this.canvasSize.height
+  )
+  // 绘制背景
+  if (this.backgroundImage) {
+    this.scaleToFill(this.backgroundImage)
+  }
+  // 绘制每个元素
+  this.graphData.forEach(graph => graph.draw(this.icons))
+}
+```
+
+### 选中元素
+
+要判断是否点击在了某个元素上，实际上是要判断点击位置的坐标，是否落在由元素四个角围成的矩形内。假设左上角为原点 `(x, y)`，宽高分别为 `width`、`height`，那么四个角的坐标分别可以表示为：
+
+- 左上：`(x, y)`
+- 右上：`(x + width, y)`
+- 右下：`(x + width, y + height)`
+- 左下：`(x, y + height)`
+
+封装成方法为：
+
+```js
+calculateCorners(x, y, width, height) {
+  return [
+    { x: x, y: y },
+    { x: x + width, y: y },
+    { x: x + width, y: y + height },
+    { x: x , y: y + height }
+  ]
+}
+```
+
+我们把这四个角的坐标放到一个数组中保存，那么判断是否在区域内和选中状态的方法分别为：
+
+```js
+isInside(points, target) {
+  const { x, y } = target
+  return points[0].x <= x && x <= points[1].x && points[0].y <= y && y <= points[3].y
+}
+
+isSelected(x, y) {
+  this.corners = this.calculateCorners(this.x, this.y, this.width, this.height)
+  return this.isInside(this.corners, { x, y })
+}
+```
+
+然而，元素是可以叠加的，同一个位置，有可能存在多个元素。我们想要的效果是，点击时选中最上层的那个元素。因此，在判断是否选中时，通过遍历所有已添加的元素，并找到最后添加的那个即可。
+
+### 元素的操作
+
+对一个元素的操作有选中、移动、缩放、删除等。除选中外，这些操作的前提是，元素必须为选中状态。因此可以归纳元素的操作定义为：
+
+- 选中：从未选中到选中
+- 移动：选中状态下，点击位置在元素内，且不在操作按钮上
+- 缩放：选中状态下，点击位置在缩放按钮上
+- 删除：选中状态下，点击位置在删除按钮上
+
+点击时，需要对上述状态进行判断，以确定元素当前的操作：
+
+```js
+touchStart(e) {
+  const {x, y} = e.touches[0]
+  // 记录选中的元素，同一位置可能选中多个
+  this.selectedGraphs = []
+  // 记录点击开始位置的坐标，用于计算实际的位移量
+  this.touchStartPoint = {x, y}
+  let lastDeleteIndex
+  this.graphData.forEach((graph, index) => {
+    // 遍历所有已存在元素，判断点击位置是否在元素内，并更新选中状态
+    const isSelected = graph.isSelected(x, y)
+    const action = graph.getSelectedAction(x, y)
+    graph.action = action
+    // 未选中 => 选中
+    if (isSelected && !graph.selected) {
+      graph.selected = true
+      graph.action = false
+      this.selectedGraphs.push(graph)
+      return
+    }
+    // 已选中
+    if (graph.selected) {
+      // 已选中，移动
+      if (isSelected && !action) {
+        graph.selected = true
+        this.selectedGraphs.push(graph)
+        return
+      }
+      // 已选中，有操作（删除或缩放）
+      if (action) {
+        graph.selected = true
+        this.selectedGraphs.push(graph)
+        if (action === 'delete') {
+          lastDeleteIndex = index
+        }
+        return
+      }
+    }
+    graph.selected = false
+  })
+  const lastIndex = this.selectedGraphs.length - 1
+  if (lastIndex >= 0) {
+    // 循环，重置非最顶元素状态
+    let index = 0
+    while (index < lastIndex) {
+      this.selectedGraphs[index].selected = false
+      this.selectedGraphs[index].action = false
+      index++
+    }
+    // 删除元素
+    const selected = this.selectedGraphs[lastIndex]
+    if (selected.action === 'delete' && lastDeleteIndex >= 0) {
+      this.graphData.splice(lastDeleteIndex, 1)
+    }
+    // 记录点击开始时被选中元素的位置，用于计算实际的位移量
+    this.activeGraphOrigin = Object.assign({}, selected)
+  }
+  this.render()
+}
+```
+
+其中，删除和移动的操作都比较简单。删除某个元素，只需要将该元素从元素列表中删除，并重新绘制即可。而移动某个元素，则需要将当前手指移动的位置坐标，对比原始坐标，计算出位移量，更新元素的坐标属性，并重新绘制即可。
+
+### 元素的缩放
+
+稍微复杂点的，是元素的缩放操作。这里的缩放效果并不是自由拉伸，而是保持元素的原始比例下进行拉伸。由于比例始终保持，元素相当于只能在其对角线上进行缩放。当我们手指点击右下角的缩放按钮并移动到新的位置时，实际的拉伸的距离为移动终点在元素对角线上的位移。可以画一条垂直于对角线并经过移动终点的直线，其与元素对角线的交点即为元素最终缩放的位置。通过对比最终点位置与原始位置的比例，得到实际缩放的比例。如图：
+
+![坐标图](/images/canvas-poster-sketchpad/scale.png)
+
+假设对角线的斜率为 `k`，元素的原始位置为 `origin`，移动终点坐标为 `(x, y)`。通过换算可以得到，交点的 x 坐标为 `(k * (x + origin.x) + y - origin.y) / (2 * k)`，通过下面的方法，可以更新元素的坐标：
+
+```js
+/**
+ * 按比例缩放
+ * @param {手指所在位置 x 坐标} x
+ * @param {手指所在位置 y 坐标} y
+ * @param {元素的原始位置} origin
+ */
+scale(x, y, origin) {
+  // 原始元素对角线的斜率
+  const k = this.height / this.width
+  // 经过当前位置与元素对角线垂直线交点的 x 坐标
+  const ix = (k * (x + origin.x) + y - origin.y) / (2 * k)
+  // 通过交点坐标算出缩放比例
+  const scaleRatio = (ix - origin.x) / origin.width
+
+  // 根据缩放比例与元素类型，计算出新的元素属性
+  if (this.type === 'text') {
+    const newFontsize = origin.fontSize * scaleRatio
+    if (newFontsize < MIN_FONTSIZE) return
+    this.fontSize = newFontsize
+  } else {
+    const newWidth = origin.width * scaleRatio
+    const newHeight = origin.height * scaleRatio
+    if (Math.min(newWidth, newHeight) < MIN_IMAGE_SIZE) return
+    this.width = newWidth
+    this.height = newHeight
+  }
+}
+```
+
+其实还差“元素的旋转”功能，不过由于客户没有要求，项目时间也比较赶，就没有实现这一块。等之后有时间，再把这一部分完善了。
