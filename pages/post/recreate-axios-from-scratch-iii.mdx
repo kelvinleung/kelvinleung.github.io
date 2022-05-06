@@ -127,7 +127,7 @@ function CancelToken(executor) {
 }
 ```
 
-从构造函数`CancelToken()`中可以看出，其实例中有一个`promise`属性，它将`resolve()`方法暴露给了`resolvePromise`。构造函数`CancelToken()`的参数`executor`，在生成实例时会调用。也就是说上面用例二中的`executor(c)`方法在生成 token 实例时会执行，实际上就是执行了：
+从构造函数`CancelToken()`中可以看出，它的实例中有一个名为`promise`的属性，其值是一个 Promise，它将`resolve()`方法暴露给了`resolvePromise`。而构造函数`CancelToken()`的参数`executor`，在生成实例时会调用。也就是说上面用例二中的`executor(c)`方法在生成 token 实例时会执行，实际上就是执行了：
 
 ```js
 cancel = c;
@@ -190,7 +190,7 @@ function Cancel(message) {
 Cancel.prototype.__CANCEL__ = true;
 ```
 
-我们可以通过`isCancel()`函数来判断`reject()`方法抛出的错误是否为`Cancel`实例：
+我们可以通过`isCancel()`函数来判断`reject()`方法抛出的错误是否为`Cancel`实例，从而作出特殊的处理：
 
 ```js
 function isCancel(value) {
