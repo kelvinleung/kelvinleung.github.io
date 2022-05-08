@@ -1,11 +1,11 @@
 @import "./variables";
 
 .main-posts-list {
-  padding: 4rem 0;
+  padding: 4rem 0 0;
   li {
     margin: 0 0 4rem;
     h1 {
-      font-size: 2rem;
+      font-size: 1.6rem;
       color: $strong-font-color;
       margin: 1rem 0 2rem;
       &:hover {

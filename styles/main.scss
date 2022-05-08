@@ -31,3 +31,9 @@ ul,
 ol {
   list-style: none;
 }
+
+@media screen and (max-width: 800px) {
+  html, body {
+    font-size: 13px;
+  }
+}
