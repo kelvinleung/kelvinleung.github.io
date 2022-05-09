@@ -32,8 +32,9 @@ ol {
   list-style: none;
 }
 
-@media screen and (max-width: 800px) {
+@media (max-width: 800px) {
   html, body {
-    font-size: 13px;
+    font-size: 14px;
+    -webkit-text-size-adjust: none;
   }
 }
