@@ -21,7 +21,7 @@ const MenuButton = ({ onToggle }) => {
 
 const Menu = ({ vertical, onToggle }) => {
   const router = useRouter();
-  const path = router.pathname;
+  const { pathname: path, query } = router;
 
   return (
     <div className="navbar-menu-container">
@@ -33,30 +33,55 @@ const Menu = ({ vertical, onToggle }) => {
           </Link>
         </li>
         <li>
-          <Link href="/posts">
-            <a className={path.match(/(^\/post)|(^\/posts)/) ? "active" : null}>
-              秘笈
+          <Link href="/posts/horse-sense">
+            <a
+              className={
+                path.match(/^\/posts/) && query.type === "horse-sense"
+                  ? "active"
+                  : null
+              }
+            >
+              秘籍
             </a>
           </Link>
         </li>
         <li>
-          <Link href="/">
-            <a>八股</a>
+          <Link href="/posts/gibberish">
+            <a
+              className={
+                path.match(/^\/posts/) && query.type === "gibberish"
+                  ? "active"
+                  : null
+              }
+            >
+              八股
+            </a>
           </Link>
         </li>
         <li>
-          <Link href="/">
-            <a>奇术</a>
+          <Link href="/posts/xray">
+            <a
+              className={
+                path.match(/^\/posts/) && query.type === "xray"
+                  ? "active"
+                  : null
+              }
+            >
+              庖丁
+            </a>
           </Link>
         </li>
         <li>
-          <Link href="/">
-            <a>轮子</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/">
-            <a>鄙人</a>
+          <Link href="/posts/copycat">
+            <a
+              className={
+                path.match(/^\/posts/) && query.type === "copycat"
+                  ? "active"
+                  : null
+              }
+            >
+              画瓢
+            </a>
           </Link>
         </li>
       </ul>
@@ -66,7 +91,7 @@ const Menu = ({ vertical, onToggle }) => {
 
 export default function NavBar() {
   const router = useRouter();
-  const path = router.pathname;
+  const path = router.asPath;
 
   const [showMenu, setShowMenu] = useState(false);
 
