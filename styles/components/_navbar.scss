@@ -58,6 +58,7 @@
     flex-direction: column;
     background-color: #fff;
     box-shadow: 0 0 6px 6px rgba(0, 0, 0, 0.05);
+    animation: showmenu 0.3s;
     li {
       a {
         display: block;
@@ -69,5 +70,14 @@
         font-weight: 600;
       }
     }
+  }
+}
+
+@keyframes showmenu {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
   }
 }
