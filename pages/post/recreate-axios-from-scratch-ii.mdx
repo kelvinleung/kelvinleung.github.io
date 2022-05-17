@@ -155,7 +155,7 @@ Promise.resolve(config)
 
 ![chain](/images/recreate-axios-from-scratch/chain.png)
 
-利用 Promise，我们能够将让拦截器处理异步的操作，同时还能够处理每个节点的异常。更妙的是，我们将请求拦截器、请求方法、响应拦截器一块放到一个数组中，通过遍历，每次取出一对方法，便能很优雅地利用 Promise 的`then()`方法来串连起它们。对于请求方法的那一对，我们用`undefined`来占位，则请求的异常将穿透给其下一对，即响应拦截器来处理。
+利用 Promise，我们能够让拦截器处理异步的操作，同时还能够处理每个节点的异常。更妙的是，我们将请求拦截器、请求方法、响应拦截器一块放到一个数组中，通过遍历，每次取出一对方法，便能很优雅地利用 Promise 的`then()`方法来串连起它们。对于请求方法的那一对，我们用`undefined`来占位，则请求的异常将穿透给其下一对，即响应拦截器来处理。
 
 ![chain-array](/images/recreate-axios-from-scratch/chain-array.png)
 
