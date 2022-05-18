@@ -1,0 +1,93 @@
+---
+title: "JSX 与 { 表达式 }"
+date: "MAY 17, 2022"
+desc: "偶然间在一个技术群里看到有人问，为什么在 React 里，处理点击事件的函数还没点击就执行了，而且只执行一次；另外，如果在这个函数外面再套一层箭头函数的话，它又正常了；还有就是在没有参数的情况下，也是正常的。"
+type: "gibberish"
+---
+
+偶然间在一个技术群里看到有人问，为什么在 React 里，处理点击事件的函数还没点击就执行了，而且只执行一次；另外，如果在这个函数外面再套一层箭头函数的话，它又正常了；还有就是在没有参数的情况下，也是正常的。大概就是下面的几种情况：
+
+```jsx
+// 只执行一次，并且还没点击就执行了
+<Button onClick={doSomething(args)} />
+
+// 包一层箭头函数就正常了
+<Button onClick={() => doSomething(args)} />
+
+// 没有参数的情况下，也是正常的
+<Button onClick={doSomething} />
+```
+
+这个问题我也曾经遇到过，尤其是对于刚从 Vue 或者习惯写原生转过来写 React 的人来说，的确很容易搞混：
+
+```js
+// 在 Vue 中是正常的
+<Button @click="doSomething(args)" />
+
+// 在原生中是正常的
+<button onclick="doSomething(args)">按钮</button>
+```
+
+那么为什么在 React 里（实际上只是 JSX，与框架无关），第一种写法只执行一次呢？其实这个问题产生的原因很简单，与框架一点关系都没有，只是一个很基础的 JS 问题。
+
+在 React 官方[介绍 JSX 的文档](https://reactjs.org/docs/introducing-jsx.html)中有如下一段：
+
+> You can put any valid JavaScript expression inside the curly braces in JSX. For example, `2 + 2`, `user.firstName`, or `formatName(user)` are all valid JavaScript expressions.
+
+也就是说，JSX 的大括号里需要的是一个“表达式”，即`propA={表达式}`。而“表达式”和“语句”，是 JS 中两个比较容易混淆的概念。MDN 中对表达式是这样定义的：
+
+> An expression is any valid unit of code that resolves to a value.
+
+因此，表达式和语句最大的区别，就是能不能计算出一个“值”来。其实 JSX 中`onClick={doSomething}`的部分，可以看作是一个赋值语句，即把大括号直接去掉：
+
+```js
+// onClick={doSomething} 相当于：
+onClick = doSomething;
+```
+
+也就是说在 JSX 中给 props 传值，其实就只是将等号右边，即大括号内的表达式的值，赋给左边的 props 这么简单而已。在上面的例子中就是把`onClick`指向`doSomething`这个函数。而当用户点击该组件时，框架会调用`onClick()`，也就相当于调用`doSomething()`。
+
+而造成 bug 的原因，往往就是忽略了这是一个赋值的过程，错误地认为点击事件发生后，框架会去执行大括号内的“语句”。尤其对于习惯了 Vue 的人来说，因为在 Vue 的模板语法中，的确是按这个逻辑去执行的。
+
+回到最上面的第一个例子：
+
+```jsx
+// 只执行一次，并且还没点击就执行了
+<Button onClick={doSomething(args)} />
+```
+
+这里之所以会执行一次，是因为在渲染的过程中，直接调用了`doSomething(args)`，并将其返回值赋值给了`onClick`。因此，在用户点击之前，事件处理的方法就已经被调用了。假设该方法并没有返回值，则`onClick`的值为`undefined`。
+
+后续当用户点击该组件时，框架调用`onClick()`，并不会再次执行`doSomething()`方法。这是因为`onClick`的值为`undefined`，React 对其进行了防呆的处理，直接忽略而并不会在实际的 DOM 上添加事件监听。
+
+```js
+/*
+  packages/react-dom/src/events/getListener.js
+  getListener() 方法中
+*/
+if (listener && typeof listener !== "function") {
+  throw new Error(
+    `Expected \`${registrationName}\` listener to be a function, instead got a value of \`${typeof listener}\` type.`
+  );
+}
+
+/*
+  packages/react-dom/src/events/DOMPluginEventSystem.js
+  accumulateSinglePhaseListeners() 方法中
+*/
+// Standard React on* listeners, i.e. onClick or onClickCapture
+if (reactEventName !== null) {
+  const listener = getListener(instance, reactEventName);
+  if (listener != null) {
+    listeners.push(
+      createDispatchListener(instance, listener, lastHostComponent)
+    );
+  }
+}
+```
+
+当我们传给 React 自带的合成事件（SyntheticEvent）的值不是一个函数时，框架将会报错。而如果传的值为 falsy，则该事件并不会被监听，直接忽略。
+
+## 小结
+
+JSX 的大括号里面要写“表达式”，对于事件来说，要的值是函数。`() => doSomething(args)`和`doSomething`都是函数，在事件触发的时候，调用的是事件（如`onClick()`)，而不是写在大括号里的“语句”。
