@@ -2,6 +2,44 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
+const MenuData = [
+  {
+    id: 1,
+    name: "首页",
+    url: "/",
+    regex: /\//,
+    type: undefined,
+  },
+  {
+    id: 2,
+    name: "秘籍",
+    url: "/posts/horse-sense",
+    regex: /^\/posts/,
+    type: "horse-sense",
+  },
+  {
+    id: 3,
+    name: "八股",
+    url: "/posts/gibberish",
+    regex: /^\/posts/,
+    type: "gibberish",
+  },
+  {
+    id: 4,
+    name: "庖丁",
+    url: "/posts/xray",
+    regex: /^\/posts/,
+    type: "xray",
+  },
+  {
+    id: 5,
+    name: "画瓢",
+    url: "/posts/copycat",
+    regex: /^\/posts/,
+    type: "copycat",
+  },
+];
+
 const MenuButton = ({ onToggle }) => {
   return (
     <div className="navbar-menu-button" onClick={onToggle}>
@@ -27,63 +65,21 @@ const Menu = ({ vertical, onToggle }) => {
     <div className="navbar-menu-container">
       {vertical && <div className="navbar-menu-mask" onClick={onToggle}></div>}
       <ul className={vertical ? "navbar-menu-vertical" : "navbar-menu"}>
-        <li>
-          <Link href="/">
-            <a className={path === "/" ? "active" : null}>首页</a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/posts/horse-sense">
-            <a
-              className={
-                path.match(/^\/posts/) && query.type === "horse-sense"
-                  ? "active"
-                  : null
-              }
-            >
-              秘籍
-            </a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/posts/gibberish">
-            <a
-              className={
-                path.match(/^\/posts/) && query.type === "gibberish"
-                  ? "active"
-                  : null
-              }
-            >
-              八股
-            </a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/posts/xray">
-            <a
-              className={
-                path.match(/^\/posts/) && query.type === "xray"
-                  ? "active"
-                  : null
-              }
-            >
-              庖丁
-            </a>
-          </Link>
-        </li>
-        <li>
-          <Link href="/posts/copycat">
-            <a
-              className={
-                path.match(/^\/posts/) && query.type === "copycat"
-                  ? "active"
-                  : null
-              }
-            >
-              画瓢
-            </a>
-          </Link>
-        </li>
+        {MenuData.map((menu) => (
+          <li key={menu.id}>
+            <Link href={menu.url}>
+              <a
+                className={
+                  path.match(menu.regex) && query.type === menu.type
+                    ? "active"
+                    : null
+                }
+              >
+                {menu.name}
+              </a>
+            </Link>
+          </li>
+        ))}
       </ul>
     </div>
   );
