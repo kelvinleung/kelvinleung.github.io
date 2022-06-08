@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { bundleMDX } from "mdx-bundler";
 import { getMDXComponent } from "mdx-bundler/client";
+import { getCodeMeta } from "lib/syntax";
 import PostLayout from "components/PostLayout";
 import { postsDirectory, getAllPosts } from "lib/posts";
 import components from "components/MDXComponents";
@@ -22,6 +23,10 @@ export async function getStaticProps({ params }) {
 
   const { code, frontmatter } = await bundleMDX({
     source: fileContent,
+    mdxOptions(options) {
+      options.rehypePlugins = [...(options.rehypePlugins ?? []), getCodeMeta];
+      return options;
+    },
   });
 
   return { props: { meta: frontmatter, code } };

@@ -3,6 +3,7 @@
 @use "./index";
 @use "./components/navbar";
 @import "./variables";
+@import "./prism-one-light";
 
 *,
 *::before,
@@ -29,6 +30,13 @@ a {
 ul,
 ol {
   list-style: none;
+}
+
+code {
+  padding: 0.5em;
+  margin: 0 0.5em;
+  background-color: hsl(220, 100%, 98%);
+  color: rgb(64, 120, 242);
 }
 
 @media (max-width: 800px) {

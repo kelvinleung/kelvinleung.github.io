@@ -1,4 +1,5 @@
 @import "./variables";
+@import url(https://cdn.jsdelivr.net/gh/tonsky/FiraCode@5.2/distr/fira_code.css);
 
 .post-container {
   line-height: 2;
@@ -104,5 +105,29 @@
   img {
     width: 100%;
     padding: 1rem;
+  }
+  .code-block-container {
+    margin: 2rem 0;
+    font-family: "Fira Code", Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+    box-shadow: 0 0 10px 10px rgba(0, 0, 0, 0.05);
+    border-radius: 1rem;
+  }
+  .code-block-head {
+    padding: 0.5rem 2rem;
+    border-radius: 1rem 1rem 0 0;
+    background-color: #eee;
+    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  pre {
+    .code-block {
+      display: inline-block;
+    }
+    .token-line {
+      display: block;
+      padding: 0 2rem;
+    }
   }
 }

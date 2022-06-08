@@ -1,21 +1,35 @@
+import { extractMeta } from "lib/syntax";
 import Highlight, { defaultProps } from "prism-react-renderer";
-import theme from "prism-react-renderer/themes/nightOwlLight";
 
 const CodeBlock = ({ children }) => {
-  const { className, children: code } = children.props;
+  const { className, children: code, metaString } = children.props;
   const language = className.replace(/language-/, "");
+  const metaOptions = extractMeta(metaString);
   return (
-    <Highlight {...defaultProps} code={code} language={language} theme={theme}>
+    <Highlight
+      {...defaultProps}
+      code={code}
+      language={language}
+      theme={undefined}
+    >
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
-        <pre className={className} style={style}>
-          {tokens.slice(0, -1).map((line, i) => (
-            <div key={i} {...getLineProps({ line, key: i })}>
-              {line.map((token, key) => (
-                <span key={key} {...getTokenProps({ token, key })} />
+        <div className="code-block-container">
+          <div className="code-block-head">
+            <span>{metaOptions.title ? metaOptions.title : ":)"}</span>
+            <span>{language}</span>
+          </div>
+          <pre className={className} style={style}>
+            <div className="code-block">
+              {tokens.slice(0, -1).map((line, i) => (
+                <span key={i} {...getLineProps({ line, key: i })}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token, key })} />
+                  ))}
+                </span>
               ))}
             </div>
-          ))}
-        </pre>
+          </pre>
+        </div>
       )}
     </Highlight>
   );

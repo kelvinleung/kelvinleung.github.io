@@ -23,6 +23,7 @@
     "mdx-bundler": "^9.0.1",
     "next-optimized-images": "^2.6.2",
     "prism-react-renderer": "^1.3.3",
-    "sass": "^1.43.2"
+    "sass": "^1.43.2",
+    "unist-util-visit": "^4.1.0"
   }
 }
