@@ -25,7 +25,7 @@ type: "horse-sense"
 
 项目最开始搭建的时候，本来打算主要写写文章，所以用的是纯 MD 来写。后来发现了[这个网站](https://www.joshwcomeau.com/)，里头的[这篇文章](https://www.joshwcomeau.com/blog/how-i-built-my-blog/)有介绍作者是怎样搭建他的 blog 的，用到的是 MDX。其实 MDX 就是能在 MD 文件里插入 React 的组件，是 MD 的拓展。当时我想，如果在文章里加一些自定义的组件，用来做演示，效果应该挺好的，就像上面的`TicTacToe`组件。
 
-Next.js 集成 MDX 有相当多方案，并且每个都有坑。[这篇文章](https://dev.to/tylerlwsmith/quick-comparison-of-mdx-integration-strategies-with-next-js-1kcm)有简单的对比，感兴趣的可以了解一下。一开始我尝试用`mdx-bundler`来解释 MDX 文件，第一版出来的效果还行，只是卡在了生成目录上。后面发现 [React 的文档](https://beta.reactjs.org/)居然更新了，同样是基于 Next.js 和 MDX。于是我赶紧 clone 下来，发现他们用的是`@mdx-js/loader`，折腾了一番之后，我最终同样选择了`@mdx-js/loader`，下面会有讲到。
+Next.js 集成 MDX 有相当多方案，并且每个都有坑。[这篇文章](https://dev.to/tylerlwsmith/quick-comparison-of-mdx-integration-strategies-with-next-js-1kcm)有简单的对比，感兴趣的可以了解一下。一开始我尝试用`mdx-bundler`来解释 MDX 文件，第一版出来的效果还行，只是卡在了生成目录上。后面发现 [React 的文档](https://beta.reactjs.org/)居然更新了，同样是基于 Next.js 和 MDX。于是我赶紧 clone 下来，发现他们用的是`@mdx-js/loader`。折腾了一番之后，我最终还是换回了`mdx-bundler`。
 
 ## How?
 
@@ -56,10 +56,9 @@ styles/  # 放 css 文件
 next.config.js  # Next.js 的配置文件
 ```
 
-上面看到的首页，其实就是`pages/index.js`里的东西。Next.js 开箱即支持页面路由，不需要繁琐地配置 React Router，仅需要在`pages/`目录下新增一个文件，比如`pages/about.js`，然后导出一个组件，如：
+上面看到的首页，其实就是`pages/index.js`里的东西。Next.js 开箱即支持页面路由，不需要繁琐地配置 React Router，仅需要在`pages/`目录下新增一个文件，比如`pages/about.js`，并在里面导出一个组件，如：
 
-```js
-// pages/about.js
+```js title=pages/about.js
 export default function About() {
   return <h1>Hello World!</h1>;
 }
@@ -67,12 +66,11 @@ export default function About() {
 
 然后就可以通过`http://localhost:3000/about`来访问这个页面了，简单到令人发指！
 
-整个`pages/`目录就相当于一个路由表，当需要增加页面路由时，在相应的目录下新建文件即可。通过配置不同的 loader，就能支持将不同类型的文件解析为页面。比如通过`mdx-js/loader`，就能将`pages/post/my-first-post.mdx`文件解析为`http://localhost:3000/post/my-first-post`页面。我们最终的文章都是以 MDX 文件的形式保存在`pages/post/`目录下，具体配置后面会说。
+整个`pages/`目录就相当于一个路由表，当需要增加页面路由时，在相应的目录下新建文件即可。我们的文章以 MDX 文件的形式放在`posts/`目录中。通过“动态”的方式生成，页面的解析逻辑写在`pages/post/[id].js`文件中，通过链接`http://localhost:3000/post/:id`来访问相应的文章，具体配置后面会说。
 
 要注意的是，默认情况下，Next.js 只会解析 JS 文件，需要在`next.config.js`文件中修改配置来支持更多文件类型：
 
-```js
-// next.config.js
+```js title=next.config.js
 module.exports = {
   pageExtensions: ["js", "jsx", "md", "mdx"],
 };
@@ -80,8 +78,7 @@ module.exports = {
 
 除此之外，并不是所有在`pages/`目录下的文件都会被解析生成页面，例外的有`api/`目录及`_app.js`。其中`api/`目录主要用于 severless 函数，暂时用不上，可以整个删掉完全忽略。而`pages/_app.js`这个文件，可以用来进行一些全局的配置。默认生成的`pages/_app.js`文件内容如下：
 
-```js
-// pages/_app.js
+```js title=pages/_app.js
 function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />;
 }
@@ -91,12 +88,23 @@ export default MyApp;
 
 类比 React Router，`MyApp`相当于那个被`BrowserRouter`包裹的“全局”组件。传给它的`Component`组件，则对应了`pages/`目录下每一个将要被解析的文件中默认导出的组件，相当于每个`Route`。如解析`pages/about.js`这个文件时，`Component = Aboubt`，`/about`这个路由就指向了`About`组件。
 
+此时，项目的目录结构调整为：
+
+```bash
+pages/  # 目录中的 js 文件将被解析生成页面
+|--- _app.js  # 全局布局、样式在这里设置
+|--- index.js  # 通过 http://yoursite/ 来访问
+posts/  # 文章目录，放 mdx 文件
+public/  # 放图片、图标等静态资源
+styles/  # 放 css 文件
+next.config.js  # Next.js 的配置文件
+```
+
 ### 第二步：写个布局
 
-我们可以利用`pages/_app.js`来给所有页面增加所有页面的全局配置，如页面头的信息，布局等：
+我们可以利用`pages/_app.js`来给所有页面增加所有页面的全局配置，如页面头的信息，布局等。首先，在根目录下新建`components/`目录，把自定义的组件都丢进去方便管理。创建几个页面布局用的组件，像`NavBar`、`Footer`这些。然后创一个`Layout`组件，将这些用于布局的组件像上面一样都引进来。再利用 Next.js 自带的`Head`组件，添加页面标题，icon，各种 SEO 的标签等。代码如下：
 
-```js
-// components/Layout.jsx
+```js title=components/Layout.jsx
 import Head from "next/head";
 import NavBar from "./Navbar";
 import Footer from "./Footer";
@@ -115,7 +123,7 @@ export default function Layout({ children }) {
         <link rel="icon" href="/favicon.ico" />
         <title>{PAGE_TITLE}</title>
       </Head>
-      // 所有页面通用布局
+      // 所有页面通用的布局
       <div className="container">
         <NavBar />
         <main className="main">{children}</main>
@@ -126,12 +134,9 @@ export default function Layout({ children }) {
 }
 ```
 
-在根目录下新建`components/`目录，把自定义的组件都丢进去方便管理。创建几个页面布局用的组件，像` NavBar`、`Footer `这些。然后创一个`Layout`组件，将这些用于布局的组件像上面一样都引进来。
+将`Layout`组件引入到`pages/_app.js`中，像下面这样包住`<Component />`，就可以实现全局的布局了。
 
-再利用 Next.js 自带的`Head`组件，添加页面标题，icon，各种 SEO 的标签等。将`Layout`组件引入到`pages/_app.js`中，像下面这样包住`<Component />`，就可以实现全局的布局了。
-
-```js
-// pages/_app.js
+```js title=pages/_app.js
 import Layout from "components/Layout";
 import "styles/main.scss";
 
@@ -150,14 +155,13 @@ export default MyApp;
 
 ![Blog 首页](/images/how-to-build-a-static-blog-with-nextjs-and-mdx-i/home.png)
 
-写完基本的布局，是时候来写首页了。Blog 的首页比较简单，就是一个文章的列表，包括文章的标题、发表日期、简介等。这些数据，会在 Next.js 打包时，传给每一个文章页面的组件。
+写完基本的布局，是时候来写首页了。Blog 的首页比较简单，就是一个文章的列表，包括文章的标题、发表日期、简介等。这些数据，会在 Next.js 打包时，传给首页组件。
 
 Next.js 支持 SSG 和 SSR 的方式去生成页面，我们是纯静态页面，不考虑 SSR。在 SSG 的过程中，Next.js 提供了`getStaticProps()`钩子，可以在生成页面的时候去做一些额外的处理，比如从数据库中获取数据，压缩图片等。这些处理过的数据，可以通过`getStaticProps()`返回的对象（`props`）传递给页面组件。
 
 假设我们有一个获取文章数据的`getAllPosts()`函数。我们可以在`pages/index.js`中导出一个异步函数`getStaticProps`，在这个函数中调用`getAllPosts`，将获取到的文章数据`postsData`包裹在一个对象中返回出来（作为`props`属性的值）。Next.js 就会在 SSG 的过程中，以`props`的形式将这个返回值传递给`Home`组件。
 
-```js
-// pages/index.js
+```js title=pages/index.js
 function getAllPosts() {
   // 获取文章数据
 }
@@ -177,16 +181,15 @@ export default function Home({ postsData }) {
 }
 ```
 
-那么问题来了，这个`getAllPosts()`函数，该怎么弄呢？前面讲过，最终我们是要用 MDX 文件来写文章，放在`pages/post/`这个目录下。每个文件，即每篇文章生成一个文章的页面，路由为文件名，如下：
+那么问题来了，这个`getAllPosts()`函数，该怎么弄呢？前面讲过，最终我们是要用 MDX 文件来写文章，放在`posts/`这个目录下，如下：
 
 ```bash
-pages/
-|--- post/
-     |--- first-post.mdx   # => http://localhost:3000/post/first-post
-     |--- second-post.mdx  # => http://localhost:3000/post/second-post
+posts/
+|--- first-post.mdx   # => http://localhost:3000/post/first-post
+|--- second-post.mdx  # => http://localhost:3000/post/second-post
 ```
 
-那么有没有可能，在这些文件中记录标题、发表日期、简介等信息，然后遍历这个目录下的所有文件，取出这些数据呢？有，我们需要用到 **frontmatter**！
+那么有没有可能，在这些文件中记录标题、发表日期、简介、分类等信息，然后遍历这个目录下的所有文件，取出这些数据呢？有，我们需要用到 **frontmatter**！
 
 Frontmatter 是 markdown 的插件，通过在 MD 文件头插入键值对的方式，存储有关文件的元数据。我们可以通过 frontmatter 来存储标题、发表日期、简介这些信息，格式如下：
 
@@ -195,6 +198,7 @@ Frontmatter 是 markdown 的插件，通过在 MD 文件头插入键值对的方
 title: "使用 Next.js 与 MDX 搭建一个静态博客"
 date: "OCT 22, 2021"
 desc: "花了几天时间，重新搭了一个 blog。"
+type: "horse-sense"
 ---
 
 文章正文部分
@@ -206,28 +210,34 @@ desc: "花了几天时间，重新搭了一个 blog。"
 yarn add gray-matter -D
 ```
 
-在根目录新建`lib/posts.js`文件，实现`getAllPosts()`函数。大致过程为，先遍历`pages/post/`目录，拿到所有文件，过滤掉只要 MDX 文件。读取每个文件，通过`gray-matter`处理，将提取到的数据与文件名（id）一并按发表日期排序后返回。具体代码如下：
+在根目录新建`lib/posts.js`文件，实现`getAllPosts()`函数。大致过程为：
 
-```js
-// lib/posts.js
+1. 先遍历`posts/`目录，拿到所有文件名，并过滤掉只要 MDX 文件
+2. 读取每个文件，通过`gray-matter`处理
+3. 将提取到的数据与文件名（id）组合
+4. 按发表日期排序后返回
+
+具体代码如下：
+
+```js title=lib/posts.js
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
 
-const postsDirectory = path.join(process.cwd(), "pages", "post");
+export const postsDirectory = path.join(process.cwd(), "posts");
+// 获取 /posts 目录下的文件名，过滤只要 MDX 文件
+const fileNames = fs
+  .readdirSync(postsDirectory)
+  .filter((fileName) => fileName.match(/\.mdx$/));
 
-export function getAllPosts() {
-  // 获取 /posts 目录下的文件名，过滤只要 MDX 文件
-  const fileNames = fs
-    .readdirSync(postsDirectory)
-    .filter((fileName) => fileName.match(/\.mdx$/));
-  const postsData = fileNames.map((fileName) => {
+export function getAllPosts(type) {
+  let postsData = fileNames.map((fileName) => {
     // 去除后缀名，剩下的文件名为 id
     const id = fileName.replace(/\.mdx$/, "");
 
     // MDX 文件路径
-    const fullPath = path.join(postsDirectory, fileName);
-    const fileContent = fs.readFileSync(fullPath, "utf8");
+    const filePath = path.join(postsDirectory, fileName);
+    const fileContent = fs.readFileSync(filePath, "utf-8");
 
     // 读取 MDX 文件头数据
     const { data } = matter(fileContent);
@@ -237,8 +247,12 @@ export function getAllPosts() {
       ...data,
     };
   });
-  // 返回按时间排序的结果
+  // 返回指定类型，且按时间排序的结果
+  if (type) postsData = postsData.filter((post) => post.type === type);
+
   return postsData.sort(({ date: a }, { date: b }) => {
+    a = new Date(a);
+    b = new Date(b);
     if (a < b) {
       return 1;
     } else if (a > b) {
@@ -250,10 +264,11 @@ export function getAllPosts() {
 }
 ```
 
+这里`getAllPosts(type)`方法还引入了一个`type`参数，方便获取特定分类的文章数据。
+
 然后在`components/`目录中新建一个`PostList`组件，方便在别的页面中复用。组件用到了 Next.js 自带的`Link`组件，用法可以看[官方文档](https://nextjs.org/docs/api-reference/next/link)，代码如下：
 
-```js
-// components/PostList.jsx
+```js title=components/PostList.jsx
 import Link from "next/link";
 
 // postData 包含了所有文章的 id、标题、发表日期、简介
@@ -280,8 +295,7 @@ export default function PostList({ postsData }) {
 
 最后在`pages/index.js`文件中调用`getAllPosts`并传给`PostList`。注意，最后`return`出来的数据，一定要包在`props{}`对象中。如此这番折腾之后，我们的首页终于完成了！
 
-```js
-// pages/index.js
+```js title=pages/index.js
 import PostList from "components/PostList";
 import { getAllPosts } from "lib/posts";
 
@@ -299,4 +313,4 @@ export default function Home({ postsData }) {
 }
 ```
 
-鉴于篇幅有点过长，我决定将它砍成几份。关于文章页面的生成，代码高亮的配置，文章目录等，改日再写。
+鉴于篇幅有点过长，我决定将它砍成几份。关于文章页面的生成，代码高亮的配置等，改日再写。
