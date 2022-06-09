@@ -15,7 +15,7 @@ const CodeBlock = ({ children }) => {
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
         <div className="code-block-container">
           <div className="code-block-head">
-            <span>{metaOptions.title ? metaOptions.title : ":)"}</span>
+            <span>{metaOptions.title ? metaOptions.title : ">_<"}</span>
             <span>{language}</span>
           </div>
           <pre className={className} style={style}>
