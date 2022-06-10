@@ -1,0 +1,260 @@
+---
+title: "使用 Next.js 与 MDX 搭建一个静态博客（二）"
+date: "JUNE 9, 2022"
+desc: "花了几天时间，重新搭了一个 blog。考虑到之前一直在写 Vue，这次想换 React 练练手，调研了一堆轮子后，花了九牛二虎之力才最终定下来，用 Next.js 和 MDX 来搭。过程中遇到了无数个坑，总结得到了这篇文章。"
+type: "horse-sense"
+---
+
+上一回写了 Next 的基本项目结构、全局布局，以及怎样读取 MDX 的头数据等。这次继续介绍如何解析 MDX 的内容到博客文章页面，以及代码块如何高亮。以下面的目录结构为起点：
+
+```bash
+components/
+  |--- Layout.jsx
+  |--- NavBar.jsx
+  |--- Footer.jsx
+lib/
+  |--- posts.js
+pages/  # 目录中的 js 文件将被解析生成页面
+  |--- _app.js  # 全局布局、样式在这里设置
+  |--- index.js  # 通过 http://yoursite/ 来访问
+posts/  # 文章目录，放 mdx 文件
+  |--- first-post.mdx
+public/  # 放图片、图标等静态资源
+styles/  # 放 css 文件
+next.config.js  # Next.js 的配置文件
+```
+
+## 博客文章页面
+
+### 第一步：动态路由
+
+在 Next 中，除了`pages/index.js`这种生成“固定”链接的页面，还可以生成“动态”链接的页面。我们希望以`http://localhost:3000/post/:id`的链接来访问相应的文章，这里的`id`就是“动态”的部分，它根据文章的 id（文件名）动态生成。我们的文章以 MDX 文件的形式放在`posts/`目录中，可以利用 Next 的[动态路由（Dynamic Routes）](https://nextjs.org/docs/routing/dynamic-routes)机制来实现。
+
+我们希望最终的路由用文章的标题来组成，如`/post/hello-world`、`/post/my-post`等。为此我们在`pages/`目录下新建`pages/post/[id].js`文件。其中，文件名中的`[id]`表示文章对应 MDX 文件的文件名，将用于生成动态路由。关于动态路由的详细用法，可以看 Next 的[官方文档](https://nextjs.org/docs/routing/dynamic-routes)，这里不再赘述。
+
+我们的页面是静态生成的，在`[id].js`文件中，我们使用`getStaticPaths()`方法，来生成相应的动态路由。该方法需要返回一个`paths`数组，枚举所有可能的动态路由，对于我们的博客项目来说，就是要返回所有文章的`id`。
+
+由于我们只需要返回文章的 id，直接调用上回提到的`getAllPosts()`方法即可：
+
+```js title=pages/post/[id].js
+import { getAllPosts } from "lib/posts";
+
+export async function getStaticPaths() {
+  const posts = getAllPosts();
+  return {
+    paths: posts.map((post) => ({
+      params: { id: post.id },
+    })),
+    fallback: false,
+  };
+}
+```
+
+### 第二步：读取页面数据
+
+`getStaticPaths()`方法还需要搭配`getStaticProps()`方法一起使用，后者将返回一个`props`对象，在生成静态页面时，作为文章页面组件的参数使用。`getStaticProps(context)`方法接受一个`context`对象作为参数，其中`context.params`属性包含了路由信息，即`getStaticPaths()`方法返回的`paths`数组中每一个对象中的`params`属性。
+
+可能有点绕，举例就是对于`[id].js`页面来说，`context.params`即`{id: ...}`。我们可以通过`id`拿到文件名，再去读取对应的 MDX 文件，解析出文章的具体内容。
+
+我们通过`mdx-bundler`的`bundleMDX()`方法来解析读取到的 MDX 文件数据，该方法会返回解析好的正文内容（`code`）和`frontmatter`头部数据，我们需要将这些数据以`props`对象的形式返回，如下：
+
+```js title=pages/post/[id].js
+import fs from "fs";
+import path from "path";
+import { bundleMDX } from "mdx-bundler";
+import { postsDirectory } from "lib/posts";
+
+export async function getStaticProps({ params }) {
+  const filePath = path.join(postsDirectory, `${params.id}.mdx`);
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+
+  const { code, frontmatter } = await bundleMDX({
+    source: fileContent,
+    // 插件，后面会有讲到
+  });
+
+  return { props: { meta: frontmatter, code } };
+}
+```
+
+### 第三步：页面组件
+
+有了解析好的文章数据后，我们就可以来写页面组件了。前面提到的正文数据`code`，并不能直接使用，需要用`mdx-bundler`的`getMDXComponent()`方法再解析一遍，得到一个 React 组件（`<Content />`）。你可以直接使用该组件，或者自己写一个`<PostLayout />`布局的组件把正文套进去：
+
+```js title=pages/post/[id].js
+import { getMDXComponent } from "mdx-bundler/client";
+import PostLayout from "components/PostLayout";
+
+export default function Post({ meta, code }) {
+  const Content = getMDXComponent(code);
+  return (
+    <PostLayout meta={meta}>
+      <Content />
+    </PostLayout>
+  );
+}
+```
+
+### 小结
+
+到此为止，我们的文章页面就写好了。我们来小结一下整个流程。
+
+1. 当 Next 生成动态路由页面时，会调用`getStaticPaths()`和`getStaticProps()`两个方法。前者用于生成路由，后者给组件提供`props`。
+2. 当 Next 调用`getStaticPaths()`方法时，我们利用`getAllPosts()`方法，读取文章目录中所有的 MDX 文件数据，生成`paths`数组。数组中的每一项对应一个文章页面的动态路由，即`id`，并通过`context.params`提供给`getStaticProps()`方法使用。
+3. `getStaticProps()`方法，通过调用`bundleMDX()`方法，找到相应的 MDX 文件进行解析，返回`code`与`meta`组成的`props`给到`<Post/>`组件使用。
+4. `<Post/>`组件，通过调用`getMDXComponent()`方法，将`props.code`转化成`<Content/>`组件，显示文章正文内容。
+
+大致流程如下图所示：
+
+![](/images/how-to-build-a-static-blog-with-nextjs-and-mdx-ii/flow.png)
+
+此时`[id].js`文件的完整代码如下：
+
+```js title=pages/post/[id].js
+import fs from "fs";
+import path from "path";
+import { bundleMDX } from "mdx-bundler";
+import { getMDXComponent } from "mdx-bundler/client";
+import PostLayout from "components/PostLayout";
+import { postsDirectory, getAllPosts } from "lib/posts";
+
+export async function getStaticPaths() {
+  const posts = getAllPosts();
+  return {
+    paths: posts.map((post) => ({
+      params: { id: post.id },
+    })),
+    fallback: false,
+  };
+}
+
+export async function getStaticProps({ params }) {
+  const filePath = path.join(postsDirectory, `${params.id}.mdx`);
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+
+  const { code, frontmatter } = await bundleMDX({
+    source: fileContent,
+    // 插件，后面会有讲到
+  });
+
+  return { props: { meta: frontmatter, code } };
+}
+
+export default function Post({ meta, code }) {
+  const Content = getMDXComponent(code);
+  return (
+    <PostLayout meta={meta}>
+      <Content />
+    </PostLayout>
+  );
+}
+```
+
+## 代码高亮
+
+作为一个开发者的博客，文章中必定少不了代码块，而默认情况下代码块的样式非常影响阅读，如下图：
+
+![](/images/how-to-build-a-static-blog-with-nextjs-and-mdx-ii/plain-code.png)
+
+因此我们需要把代码块高亮化处理。可以实现代码高亮的轮子有很多，比较常用的是 [Prism.js](https://prismjs.com/) 和 [highlight.js](https://highlightjs.org/) 这两个。我最终选择的是 Prism，用到 [prism-react-renderer](https://github.com/FormidableLabs/prism-react-renderer) 这个包。
+
+我们的代码块，通过`mdx-bundler`转换后，是放在`<pre></pre>`标签中的。为了改变代码块的样式，我们可以自定义转换后的`<pre></pre>`标签。
+
+上面讲过，我们读取到的 MDX 文件是通过`bundleMDX()`这个方法进行转换后，再通过`getMDXComponent()`这个方法转成 React 组件的。转换生成的组件（`<Content/>`）有一个`components`属性，可以替换生成的 HTML 标签。
+
+### 第一步：创建代码块组件
+
+我们可以创建一个`<CodeBlock/>`组件，用于替换`<pre></pre>`标签。在`components/`目录下，我们新建`CodeBlock.jsx`文件。
+
+```jsx title=components/CodeBlock.jsx
+import Highlight, { defaultProps } from "prism-react-renderer";
+
+const CodeBlock = ({ children }) => {
+  const { className, children: code } = children.props;
+  const language = className && className.replace(/language-/, "");
+  return (
+    <Highlight {...defaultProps} code={code} language={language}>
+      {({ className, style, tokens, getLineProps, getTokenProps }) => (
+        <div className="code-block-container">
+          <pre className={className} style={style}>
+            <div className="code-block">
+              {tokens.slice(0, -1).map((line, i) => (
+                <span key={i} {...getLineProps({ line, key: i })}>
+                  {line.map((token, key) => (
+                    <span key={key} {...getTokenProps({ token, key })} />
+                  ))}
+                </span>
+              ))}
+            </div>
+          </pre>
+        </div>
+      )}
+    </Highlight>
+  );
+};
+
+export default CodeBlock;
+```
+
+首先`<CodeBlock/>`组件接受一个名叫`children`的 props，它的`type`属性是`'code'`，表示这是一个代码块。除此以外`children`还有一个`props`属性，包含`className`和又一个`children`属性。结构大致如下：
+
+```js
+{
+  children: {
+    type: 'code',
+    props: {
+      className: 'language-js',
+      children: 'console.log("hi")'
+    }
+  }
+}
+```
+
+我们在 Markdonw 中写代码块时，可以表明代码语言，如：
+
+````md
+```js
+console.log("hello");
+```
+````
+
+其中`children.props.className`就是根据` ``` `后面所填写的语言生成的字符串，格式为`'language-*'`，通过简单的正则匹配我们就能得到代码块的语言。而`children.props.children`则为代码文本。
+
+prism-react-renderer 提供了一个`<Highlight/>`组件，用于高亮代码，用法比较简单，将对应的 props 传入即可，不再赘述。
+
+### 第二步：替换标签
+
+接下来我们要做的就是回到`<Post/>`组件中，将`CodeBlock`组件传入替换即可：
+
+```js title=pages/post/[id].js
+import CodeBlock from "components/CodeBlock";
+
+// 上略
+
+export default function Post({ meta, code }) {
+  const Content = getMDXComponent(code);
+  return (
+    <PostLayout meta={meta}>
+      <Content components={pre: CodeBlock} />
+    </PostLayout>
+  );
+}
+```
+
+### 第三步：修改主题
+
+到此，我们的代码就已经“亮”起来了。默认使用的是 [duotoneDark](https://github.com/FormidableLabs/prism-react-renderer/blob/master/src/themes/duotoneDark.js) 主题，确实不太好看，没关系，我们可以通过下面的方法进行修改。
+
+#### 方法一
+
+我们可以直接使用 prism-react-renderer 提供的主题，可以在`prism-react-renderer/themes/`目录下找到它们，然后直接修改`<Highlight/>`组件传入`theme`即可：
+
+```jsx
+import dracula from "prism-react-renderer/themes/dracula";
+
+<Highlight theme={dracula} />;
+```
+
+#### 方法二
+
+由于 prism-react-renderer 生成代码块的标签中都添加了相应的 class，我们可以直接使用 Prism 的主题。主题在网上搜一下就能找到，直接把 css 拿过来使用即可。
