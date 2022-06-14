@@ -2,9 +2,9 @@ import { extractMeta } from "lib/syntax";
 import Highlight, { defaultProps } from "prism-react-renderer";
 
 const CodeBlock = ({ children }) => {
-  const { className, children: code, metaString } = children.props;
-  const language = className.replace(/language-/, "");
-  const metaOptions = extractMeta(metaString);
+  const { className, children: code, metastring } = children.props;
+  const language = className && className.replace(/language-/, "");
+  const metaOptions = extractMeta(metastring);
   return (
     <Highlight
       {...defaultProps}
