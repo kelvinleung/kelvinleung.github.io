@@ -1,44 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-
-const MenuData = [
-  {
-    id: 1,
-    name: "首页",
-    url: "/",
-    regex: /\//,
-    type: undefined,
-  },
-  {
-    id: 2,
-    name: "秘籍",
-    url: "/posts/horse-sense",
-    regex: /^\/posts/,
-    type: "horse-sense",
-  },
-  {
-    id: 3,
-    name: "八股",
-    url: "/posts/gibberish",
-    regex: /^\/posts/,
-    type: "gibberish",
-  },
-  {
-    id: 4,
-    name: "庖丁",
-    url: "/posts/xray",
-    regex: /^\/posts/,
-    type: "xray",
-  },
-  {
-    id: 5,
-    name: "画瓢",
-    url: "/posts/copycat",
-    regex: /^\/posts/,
-    type: "copycat",
-  },
-];
+import { MENU_DATA } from "common/constant";
 
 const MenuButton = ({ onToggle }) => {
   return (
@@ -65,7 +28,7 @@ const Menu = ({ vertical, onToggle }) => {
     <div className="navbar-menu-container">
       {vertical && <div className="navbar-menu-mask" onClick={onToggle}></div>}
       <ul className={vertical ? "navbar-menu-vertical" : "navbar-menu"}>
-        {MenuData.map((menu) => (
+        {MENU_DATA.map((menu) => (
           <li key={menu.id}>
             <Link href={menu.url}>
               <a

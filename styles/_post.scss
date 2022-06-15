@@ -20,6 +20,7 @@
     display: inline-block;
     position: relative;
     transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+    color: $primary-color;
     &::after {
       content: "";
       position: absolute;
@@ -30,11 +31,6 @@
       height: 0.1em;
       background-color: $primary-color;
       transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
-    }
-    &:hover,
-    &:active,
-    &:focus {
-      color: $primary-color;
     }
     &:hover::after,
     &:active::after,
@@ -114,7 +110,8 @@
     padding: 0.5rem 2rem;
     border-radius: 1rem 1rem 0 0;
     background-color: #eee;
-    font-weight: bold;
+    font-size: 0.9rem;
+    color: $strong-font-color;
     display: flex;
     justify-content: space-between;
     align-items: center;
