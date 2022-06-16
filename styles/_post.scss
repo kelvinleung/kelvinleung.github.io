@@ -102,27 +102,64 @@
   }
   .code-block-container {
     margin: 2rem 0;
-    font-family: "Fira Code", Monaco, "Andale Mono", "Ubuntu Mono", monospace;
-    box-shadow: 0 0 10px 10px rgba(0, 0, 0, 0.05);
     border-radius: 1rem;
+    background-color: #282c34;
   }
   .code-block-head {
-    padding: 0.5rem 2rem;
+    position: relative;
+    padding: 0.5rem 1rem;
     border-radius: 1rem 1rem 0 0;
-    background-color: #eee;
     font-size: 0.9rem;
-    color: $strong-font-color;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+  }
+  .code-block-buttons {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    list-style: none;
+    margin: 0;
+    .code-block-button {
+      width: 12px;
+      height: 12px;
+      margin: 0;
+      border-radius: 50%;
+      &.red {
+        background-color: #fc605d;
+      }
+      &.yellow {
+        background-color: #fcbb40;
+      }
+      &.green {
+        background-color: #33c648;
+      }
+    }
   }
   pre {
     .code-block {
       display: inline-block;
+      min-width: 100%;
+    }
+    .code-block-line-number {
+      position: sticky;
+      left: 0;
+      display: inline-block;
+      color: $secondary-font-color;
+      background-color: #282c34;
+      text-align: right;
+      width: calc(2rem + 2ch);
+      padding: 0 1rem;
+      user-select: none;
     }
     .token-line {
       display: block;
-      padding: 0 2rem;
+      padding: 0 1rem 0 0;
     }
   }
 }
