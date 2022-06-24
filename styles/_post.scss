@@ -156,10 +156,57 @@
       width: calc(2rem + 2ch);
       padding: 0 1rem;
       user-select: none;
+      &::after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+      }
     }
     .token-line {
       display: block;
       padding: 0 1rem 0 0;
+    }
+    .token-line.highlight {
+      position: relative;
+      &,
+      .code-block-line-number::after {
+        background-color: rgba(252, 187, 64, 0.2);
+      }
+      .code-block-line-number {
+        color: #fff;
+      }
+      .code-block-line-number::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 0.5rem;
+        background-color: #fcbb40;
+        z-index: 10;
+      }
+    }
+    .token-line.add {
+      &,
+      .code-block-line-number::after {
+        background-color: rgba(51, 198, 72, 0.2);
+      }
+      .code-block-line-number {
+        color: #33c648;
+      }
+    }
+    .token-line.del {
+      &,
+      .code-block-line-number::after {
+        background-color: rgba(252, 96, 93, 0.2);
+      }
+      .code-block-line-number {
+        color: #fc605d;
+      }
     }
   }
 }
