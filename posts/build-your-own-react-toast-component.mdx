@@ -1,0 +1,532 @@
+---
+title: "如何基于 Context 和 Hooks 封装一个 Toast 组件"
+date: "July 19, 2022"
+desc: "Toast 一般用于不是特别重要的消息，一闪而过，点到即止。它不需要像弹窗一样，强制中断用户的操作，体验上更佳。当然，如果是重要的消息，还是得打断用户，毕竟 Toast 的确比较容易忽略。在日常开发中，我们经常需要向用户展示一些非重要的消息，比如加载数据成功了，或者保存、删除成功等，都会用到 Toast 组件。下面我们来尝试，使用 Context 和 Hooks，封装一个简单的 Toast 组件。"
+type: "horse-sense"
+---
+
+![toast](/images/build-your-own-react-toast-component/toast.png)
+
+像上图中这种从手机底部（或顶部）弹出的消息通知，相信大家一定不陌生，甚至可能都已经觉得有点厌烦。在 Android 中，它被称作 Toast 或 Snackbar，在 iOS 以及一些桌面系统中，它叫 Notification。不管名字是什么，它们的作用都是向用户传达消息。
+
+我还是喜欢 Toast 这个叫法，就像土司（Toast）烤好了从土司机弹出一样，形象生动。Toast 一般用于不是特别重要的消息，一闪而过，点到即止。它不需要像弹窗一样，强制中断用户的操作，体验上更佳。当然，如果是重要的消息，还是得打断用户，毕竟 Toast 的确比较容易忽略。在日常开发中，我们经常需要向用户展示一些非重要的消息，比如加载数据成功了，或者保存、删除成功等，都会用到 Toast 组件。下面我们来尝试，使用 Context 和 Hooks，封装一个简单的 Toast 组件。
+
+![toaster](/images/build-your-own-react-toast-component/toaster.png)
+
+## 开始前的一些思考
+
+我习惯写代码之前理清一下思路，把框架梳理出来，真正到了敲键盘的时候就会顺手很多。如果你是“说干就干”型的，可以直接跳过这一部分的内容。
+
+### 怎样用？
+
+封装组件，目的是为了方便日后复用，提高开发效率，因此我们得从使用者的角度出发，先思考清楚“怎样用”这个问题。如果使用起来不合心意，那样封装就失去了它的意义。设计组件，就和设计接口一样，需要哪些参数（props），返回的内容是什么（样式、交互、逻辑等），怎样调用，这些想明白了，实现起来就能有的放矢。
+
+我们先来确定最基础的入参（props），既然 Toast 展示的是“消息”，那它肯定需要`message`，而对于不同类型的消息，最好是能有不同的样式`type`，比如“警告红”、“成功绿”等。由于 Toast 一般都是“一闪而过”，因此也需要`duration`来控制展示的时间长短。除此之外，我们还可以定义一个`onHide`的事件，传入一个方法，在 Toast 消失时调用。这样就能够与组件自身的逻辑进行交互，便于拓展。综上，我们暂时先定义以下四个 props：
+
+- `message`：消息内容
+- `type`：消息类型，控制显示的样式
+- `duration`：持续时间，控制展示的时长
+- `onHide`：消失事件
+
+### 分散调用
+
+我们可以像一般的组件一样，直接以 JSX 的方式调用：
+
+```jsx
+<Toast message={message} type={type} duration={3000} onHide={hideHandler} />
+```
+
+然而这样的调用方式有个问题，就是我们需要有额外的 state 来控制它的显示。当我们在不同组件里调用时，需要在每个调用的组件里独立管理状态，显得十分麻烦。
+
+```jsx hl=1-2,6-7,11-12
+// ComponentA 中
+const [show, setShow] = useState(false)
+
+<Toast {...props} show={show} />
+
+// ComponentB 中
+const [show, setShow] = useState(false)
+
+<Toast {...props} show={show} />
+
+// ComponentC 中
+const [show, setShow] = useState(false)
+
+<Toast {...props} show={show} />
+```
+
+这样的操作除了麻烦以外，还会带来一个问题：由于我们的`<Toast/>`组件被分散内嵌在各个组件当中，导致很难统一处理样式，当有多个 Toast 同时出现时，很容易就会造成 Toast 间的“重叠”。
+
+### 统一调用
+
+既然“分散”这么麻烦，那么能不能统一在一个地方放置`<Toast/>`，这样状态、样式上都能很好的处理，比如，放置在一个统一的`<ToastContainer/>`组件中：
+
+```jsx hl=2,13
+// 统一的状态
+const [toasts, setToasts] = useState([])
+
+// ToastContainer 组件
+const ToastContainer = ({toasts}) => (
+  <ul>
+    {toasts.map(toast => (
+      <li><Toast {...toast} /></li>
+    ))}
+  </ul>
+)
+
+<ToastContainer toasts={toasts} />
+```
+
+这样一来，当我们需要展示 Toast 时，只需要往`toasts`数组中增加一个新的`toast`即可。并且所有的 Toast 都放置在 ToastContainer 中，样式也可以自由发挥了。
+
+```jsx hl=16
+// 统一的状态
+const [toasts, setToasts] = useState([])
+
+// ToastContainer 组件
+const ToastContainer = ({toasts}) => (
+  <ul>
+    {toasts.map(toast => (
+      <li><Toast {...toast} /></li>
+    ))}
+  </ul>
+)
+
+<ToastContainer toasts={toasts} />
+
+// 要展示 Toast 时
+setToasts([...toasts, newToast])
+```
+
+### 状态管理
+
+上面的方法中状态是统一了，但操作都得在同一个组件内。假如我们要在不同的组件里调用展示 Toast 的方法呢？一种方法是[“状态提升”（Lifting state up）](https://reactjs.org/docs/lifting-state-up.html)，把状态提到更高一层，具体方法不再赘述，可以看文档了解。但是这种做法会带来[“Prop drilling”](https://kentcdodds.com/blog/prop-drilling)的问题，我们得将`setToasts`方法传给需要调用的组件，如果组件嵌套的层级很深，就得一层层地往下“钻”，这种做法并不优雅。
+
+```jsx hl=16
+// 统一的状态
+const [toasts, setToasts] = useState([])
+
+// ToastContainer 组件
+const ToastContainer = ({toasts}) => (
+  <ul>
+    {toasts.map(toast => (
+      <li><Toast {...toast} /></li>
+    ))}
+  </ul>
+)
+
+<ToastContainer toasts={toasts} />
+
+// 把 setToasts 方法传给要调用的组件
+<AnotherComponent onShowToast={setToasts} />
+```
+
+实际上我们可以利用统一的状态管理工具来解决这个问题，业界已经有无数的轮子能做到，毕竟说到造轮子，的确没有比贵圈更狂热的了。比如传统一点的 [Redux](https://redux.js.org/)，新一点的 [Jotai](https://jotai.org/)，官方背景的 [Recoil](https://recoiljs.org/)，还有 [Zustand](https://github.com/pmndrs/zustand)、[Rematch](https://rematchjs.org/) 等。
+
+上面提到的这些轮子，各有优劣，可以自行选择使用。对于我们 Toast 组件这种“小鸡”，其实没有必要上“牛刀”，用 Context 配合`useContext`就可以实现同样的效果。如果你还不了解 Context 和 Hooks，可以看看[这个文档](https://kentcdodds.com/blog/how-to-use-react-context-effectively)，这里不再赘述。
+
+```jsx
+// 包在需要调用的组件的公共外层
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ToastProvider>
+    <App />
+  </ToastProvider>
+);
+```
+
+### 暴露接口
+
+我们可以自定义一个 Context Provider 组件`<ToastProvider/>`，将它包在需要调用的组件的公共外层，比如`<App/>`之外。这时我们就要考虑该将哪些东西放进 Context 里公用，就是要暴露什么样的接口出去。
+
+上面的例子中我们是通过调用`setToasts`方法来增加新的 Toast，如果直接把这个方法暴露出去，调用者有可能会随意改动 state 而导致奇怪的 bug 出现。因此我们需要在`setToasts`方法外再包上一层，以限制调用者的使用，比如下面的`toast`方法：
+
+```js
+toast("删除成功。", 3000, "success", doSomethingOnHide);
+```
+
+我们直接把所需要的参数传进去即可，省去了直接操作 state 所带来的风险。甚至我们还可以参考 Axios 的做法，把类型`type`转成方法，直接调用，省去填写`type`参数的麻烦。还可以用默认值省略一些参数，进一步简化调用：
+
+```js
+toast.info("加载成功。");
+toast.error("保存失败。");
+toast.success("抢票成功。");
+```
+
+### 小结
+
+综上，我们前期确定下来的几个基本的封装要点有：
+
+- `<Toast/>`组件需要`message`、`type`、`duration`、`onHide`这几个 props
+- 用统一的`<ToastContainer/>`来管理所有`<Toast/>`
+- 用一个数组来处理 Toast 的增删，保存相关属性
+- 用 Context 管理状态
+- 对外暴露`toast`及其衍生的方法
+
+## 开始封装
+
+接下来我们可以正式开始封装了。这里直接略过项目的创建阶段，你可以使用自己喜欢的脚手架来创建项目，又或者在已有的项目中进行封装，这并不影响实际的封装过程。我这里把所有文件都直接放在`src/`目录下，你可以把它们放在`component/`或者`hooks/`或者其它任意目录都没问题，看个人喜好。每个文件的内容在下面会具体介绍到。
+
+```
+src/
+|--- ToastProvider.jsx
+|--- Toast.jsx
+|--- ToastContainer.jsx
+|--- useToast.js
+|--- App.jsx
+|--- index.js
+|--- index.css
+```
+
+我们从最外层开始，先封装一个`<ToastProvider/>`组件。
+
+### Context Provider
+
+```jsx title=src/ToastProvider.jsx
+import { createContext } from "react";
+
+// 创建 Context
+const ToastContext = createContext({});
+
+// 套上 Provider
+const ToastProvider = ({ children }) => {
+  return <ToastContext.Provider>{children}</ToastContext.Provider>;
+};
+
+export default ToastProvider;
+```
+
+Context 利用 Provider 提供需要“暴露”公共的内容，然后通过 Consumer 或`useContext`方法来在嵌套的组件中获得这些公共的内容。在使用的时候，我们把`<ToastProvider/>`组件包在外层即可，这样里面的组件（以及深层的子组件）就能获得这些内容。
+
+```jsx title=src/index.js
+import App from "./App";
+import ToastProvider from "./ToastProvider";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ToastProvider>
+    <App />
+  </ToastProvider>
+);
+```
+
+当然，这里只是搭了个框架，因为我们还没有提供要暴露的内容，所以现在在组件中还不能获取到任何东西。
+
+### Toast 组件
+
+接下来我们来写真正的`<Toast/>`本体，它除了接受上面提到的`message`、`duration`、`type`、`onHide`这几个 props 以外，还额外增加了一个`id`，作为唯一的标识，方便我们对`toasts`数据进行删减。
+
+```jsx title=src/Toast.jsx
+import { useEffect } from "react";
+
+const TOAST_STYLE = {
+  info: {
+    bgColor: "bg-amber-100",
+    textColor: "text-amber-600",
+  },
+  error: {
+    bgColor: "bg-red-100",
+    textColor: "text-red-600",
+  },
+  success: {
+    bgColor: "bg-green-100",
+    textColor: "text-green-600",
+  },
+};
+
+const Toast = ({ id, message, duration, type, onHide }) => {
+  useEffect(() => {
+    // duration 控制显示的时长，到期消失时调用 onHide 并传入 id
+    const timer = setTimeout(() => onHide(id), duration);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div
+      className={`px-8 py-4 mb-4 last:mb-0 rounded-md shadow-sm ${TOAST_STYLE[type].bgColor} ${TOAST_STYLE[type].textColor}`}
+    >
+      {message}
+    </div>
+  );
+};
+
+export default Toast;
+```
+
+组件的逻辑比较简单，`message`展示消息的内容，你可以用你喜欢的 HTML 结构展示。我这里用了最简单的 div 配合 [Tailwind CSS](https://tailwindcss.com/)，通过`type`来区分不同类型，设置不同的样式。
+
+由于 Toast 展示一小段时间后便会自动消失，我们利用`useEffect`在组件初始化时设置一个定时器，由`duration`控制展示的时长，到期消失时，调用`onHide`方法，并传入`id`，控制 Toast 隐藏（隐藏的逻辑在后面）。
+
+### ToastContainer
+
+当同时有多个 Toast 一起展示的时候，虽然这种情况比较少，但也是要考虑进来，最好还是能够在一个“容器”里统一处理，避免样式上重叠。我们新建一个`<ToastContainer/>`组件，本质上就是一个列表，这里用 flex 简单布局一下，或者你喜欢的其它布局样式。组件接受两个 props：`toasts`中存放所有 Toast 数据，`onHide`则在消失时调用。这里又用到了“prop drilling”，因为移除 Toast 的方法（后面会讲到），我不希望它被暴露到 Context 中，只好一层层传进来。
+
+当然，如果你希望能够“手动”控制 Toast 的显示，也可以把移除的方法也一并暴露出去，这里为了保持简单暂且不这样做。
+
+```jsx title=src/ToastContainer.jsx
+import Toast from "./Toast";
+
+const ToastContainer = ({ toasts, onHide }) => {
+  return (
+    <ul className="fixed top-0 right-0 p-8 flex flex-col items-end">
+      {toasts.map((toast) => {
+        const { id, type, message, duration } = toast;
+        return (
+          <li key={id}>
+            <Toast
+              id={id}
+              message={message}
+              duration={duration}
+              type={type}
+              onHide={onHide}
+            />
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
+
+export default ToastContainer;
+```
+
+我们还可以给 Toast 的进出加上动画，这里推荐`react-transition-group`这个包。它十分小巧，严格意义上来讲，它并不是一个动画库，它只是提供了一些能够方便实现动画需求的“钩子”。它的用法也比较简单，这里用到了`<TransitionGroup/>`和`<CSSTransition/>`两个组件，再配合简单的 CSS，就能实现进出的动画效果。
+
+```jsx title=src/ToastContainer.jsx del=6,14,29 add=2,7-10,15,25,28
+import Toast from "./Toast";
+import { TransitionGroup, CSSTransition } from "react-transition-group";
+
+const ToastContainer = ({ toasts, onHide }) => {
+  return (
+    <ul className="fixed top-0 right-0 p-8 flex flex-col items-end">
+    <TransitionGroup
+      component="ul"
+      className="fixed top-0 right-0 p-8 flex flex-col items-end"
+    >
+      {toasts.map((toast) => {
+        const { id, type, message, duration } = toast;
+        return (
+          <li key={id}>
+          <CSSTransition key={id} timeout={300} classNames="toast">
+            <li>
+              <Toast
+                id={id}
+                message={message}
+                duration={duration}
+                type={type}
+                onHide={onHide}
+              />
+            </li>
+          </CSSTransition>
+        );
+      })}
+    </TransitionGroup>
+    </ul>
+  );
+};
+
+export default ToastContainer;
+```
+
+```css title=src/index.css
+.toast-enter {
+  opacity: 0;
+  transform: translateX(100%);
+}
+.toast-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 300ms;
+}
+.toast-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+.toast-exit-active {
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 300ms;
+}
+```
+
+### 状态管理
+
+处理完`<Toast/>`和`<ToastContainer/>`之后，我们回到`<ToastProvider/>`来，继续完善它状态管理部分的逻辑。
+
+```jsx title=src/ToastProvider.jsx del=1,11 add=2,9,12-17
+import { createContext } from "react";
+import { createContext, useState } from "react";
+
+// 创建 Context
+const ToastContext = createContext({});
+
+// 套上 Provider
+const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+
+  return <ToastContext.Provider>{children}</ToastContext.Provider>;
+  return (
+    <ToastContext.Provider>
+      {children}
+      <ToastContainer toasts={toasts} />
+    </ToastContext.Provider>
+  );
+};
+
+export default ToastProvider;
+```
+
+我们首先增加一个`toasts`的状态，它是一个数组。我们将它传给`<ToastContainer/>`，同时将`<ToastContainer/>`嵌在`<ToastContext.Provider/>`里。你可能注意到了，此时的`<ToastContainer/>`还缺少一个`onHide`的参数，不用急，我们先实现新增 Toast 的方法。
+
+```jsx title=src/ToastProvider.jsx add=7,13-22
+import { createContext, useState } from "react";
+
+// 创建 Context
+const ToastContext = createContext({});
+
+// 唯一 id
+let toastCount = 0;
+
+// 套上 Provider
+const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, duration, onHideHandler, type) => {
+    const toast = {
+      id: ++toastCount,
+      message,
+      duration,
+      onHideHandler,
+      type,
+    };
+    setToasts((toasts) => [...toasts, toast]);
+  };
+
+  return (
+    <ToastContext.Provider>
+      {children}
+      <ToastContainer toasts={toasts} />
+    </ToastContext.Provider>
+  );
+};
+
+export default ToastProvider;
+```
+
+在组件内，我们增加一个`addToast`方法，顾名思义这个方法是用来增加 Toast 的。它的逻辑非常简单，把所有`<Toast/>`组件需要的参数打包成一个`toast`对象，添加到数组中去。其中`id`属性我们用一个简单的全局变量来实现，每新增一个 Toast 则对其进行递增处理，保证所有`id`的唯一性。当然你也可以用`uuid`去实现。另外`onHideHandler`是一个回调函数，它将在 Toast 被移除时调用，下面会讲到它的调用时机。
+
+```jsx title=src/ToastProvider.jsx del=23 add=6-18,24
+const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+
+  // 其余部分略
+
+  const removeToast = (id) => {
+    setToasts((toasts) =>
+      toasts.filter((toast) => {
+        if (toast.id === id) {
+          if (typeof toast.onHideHandler === "function") {
+            toast.onHideHandler();
+          }
+          return false;
+        }
+        return true;
+      })
+    );
+  };
+
+  return (
+    <ToastContext.Provider>
+      {children}
+      <ToastContainer toasts={toasts} />
+      <ToastContainer toasts={toasts} onHide={removeToast} />
+    </ToastContext.Provider>
+  );
+};
+```
+
+接下来我们实现移除 Toast 的方法`removeToast`，它接受参数`id`，然后将对应的`toast`从数组中移除，在移除的过程中，调用`toast.onHideHandler`方法。我们把这个方法传给`<ToastContainer/>`组件，这样一来，当`<Toast/>`中的定时器到期时，就会触发其`onHide`方法，也即`<ToastContainer/>`中的`onHide`方法，实际上就是调用了`removeToast`方法（真的有点绕……）。
+
+### 对外的“接口”
+
+搞了这么久，实际上此时我们的 Context 还只是个空壳，里面啥也没有，因为我们还没有给它传过任何的`value`。我们可以直接把`addToast`方法放到 Context 里公开，但我希望调用的方式更加“灵活”一些。
+
+```js
+// 单个参数
+toast("设置成功。");
+// 两个参数
+toast("设置成功。", () => doSomethingOnHide);
+// config 对象
+toast("设置成功。", { duration: 3000 });
+```
+
+比如我们可以只传一个`message`参数，以及把`duration`包进一个`config`对象中，方便后续增加更多的配置项。因此我们在`addToast`外再包多一层方法，用于处理这些参数的问题。
+
+```jsx title=src/ToastProvider.jsx del=24 add=6-14,17-21,25
+const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+
+  // 其余部分略
+
+  const toast = (message, config = {}, onHideHandler, type = "info") => {
+    if (!message) return;
+    if (typeof config === "function") {
+      onHideHandler = config;
+      config = {};
+    }
+    const duration = config.duration || 3000;
+    addToast(message, duration, onHideHandler, type);
+  };
+
+  // toast.xxx 的调用方式
+  ["info", "error", "success"].forEach((type) => {
+    toast[type] = (message, config, onHideHandler) => {
+      toast(message, config, onHideHandler, type);
+    };
+  });
+
+  return (
+    <ToastContext.Provider>
+    <ToastContext.Provider value={{ toast }}>
+      {children}
+      <ToastContainer toasts={toasts} />
+      <ToastContainer toasts={toasts} onHide={removeToast} />
+    </ToastContext.Provider>
+  );
+};
+```
+
+这里我们只对外暴露一个`toast`方法，它有多种调用方式。方法内部对传进来的参数进行了简单的校验，再转交给`addToast`处理。由于 JS 中函数也是对象，因此我们在`toast`对象上添加了`toast.info`、`toast.error`、`toast.success`这几个方法，便于调用。
+
+最后的最后，我们还需要封上最后的一层方法。我们把`ToastProvider`中的`ToastContext`导出，再引入封装成`useToast`方法，这样我们就不需要在每次需要使用的时候自己手动去`useContext(ToastContext)`了。
+
+```jsx title=src/ToastProvider.jsx del=1 add=2
+const ToastContext = createContext({});
+export const ToastContext = createContext({});
+```
+
+```js title=src/useToast.js
+import { useContext } from "react";
+import { ToastContext } from "./ToastProvider";
+
+const useToast = () => useContext(ToastContext);
+
+export default useToast;
+```
+
+最终的效果就是，当我们需要在某个组件中展示 Toast 的时候，我们直接调用`toast`方法即可：
+
+```jsx
+import useToast from "./useToast";
+
+const ComponentA = () => {
+  const { toast } = useToast();
+
+  return <button onClick={() => toast("封装完成！")}>点击</button>;
+};
+```
+
+至此，我们的 Toast 组件就已经封装好了。当然，这只是简单的封装，如果想要“发个包”的话，还需要完善一些边界条件的处理，以及补充单元测试及撰写一份详细的文档等。有时间再做吧，溜了。
+
+## 参考资料
+
+- [状态提升（Lifting state up）](https://reactjs.org/docs/lifting-state-up.html)
+- [“Prop drilling”](https://kentcdodds.com/blog/prop-drilling)
+- [How to use React Context effectively](https://kentcdodds.com/blog/how-to-use-react-context-effectively)
