@@ -38,17 +38,17 @@ const CodeBlock = ({ children }) => {
       theme={undefined}
     >
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
-        <div className="code-block-container">
-          <div className="code-block-head">
-            <ul className="code-block-buttons">
-              <li className="code-block-button red"></li>
-              <li className="code-block-button yellow"></li>
-              <li className="code-block-button green"></li>
+        <div className="my-8 rounded-2xl">
+          <div className="relative px-4 py-2 rounded-tl-2xl rounded-tr-2xl text-sm font-bold text-white text-center bg-[#282c34]">
+            <ul className="absolute left-0 top-0 h-full flex items-center gap-2 px-4 m-0 list-none">
+              <li className="code-block-button bg-[#fc605d]"></li>
+              <li className="code-block-button bg-[#fcbb40]"></li>
+              <li className="code-block-button bg-[#33c648]"></li>
             </ul>
             {metaOptions.title ? metaOptions.title : "code"}
           </div>
           <pre className={className} style={style}>
-            <div className="code-block">
+            <div className="inline-block min-w-full">
               {tokens.slice(0, -1).map((line, i) => (
                 <span
                   key={i}

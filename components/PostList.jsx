@@ -3,22 +3,26 @@ import { getPostTypeName } from "common/constant";
 
 export default function PostList({ postsData }) {
   return (
-    <ul className="main-posts-list">
+    <ul className="pt-16">
       {postsData.map(({ id, title, date, desc, type }) => (
-        <li key={id}>
+        <li key={id} className="mb-16">
           <article>
-            <div className="posts-list-head">
+            <div className="flex justify-between items-center text-sm text-neutral-400">
               <span>{date}</span>
               <Link href={`/posts/${type}`}>
-                <a className="posts-list-type">{getPostTypeName(type)}</a>
+                <a className="px-4 py-2 rounded-lg bg-neutral-50 hover:text-red-600 hover:bg-red-50">
+                  {getPostTypeName(type)}
+                </a>
               </Link>
             </div>
             <Link href={`/post/${id}`}>
               <a>
-                <h1>{title}</h1>
+                <h1 className="inline-block mt-4 mb-8 text-2xl text-neutral-800 font-bold hover:text-red-600">
+                  {title}
+                </h1>
               </a>
             </Link>
-            <p>{desc}</p>
+            <p className="leading-relaxed text-neutral-500">{desc}</p>
           </article>
         </li>
       ))}

@@ -22,6 +22,6 @@ export async function getStaticProps({ params }) {
   };
 }
 
-export default function Home({ postsData }) {
+export default function Posts({ postsData }) {
   return <PostList postsData={postsData} />;
 }

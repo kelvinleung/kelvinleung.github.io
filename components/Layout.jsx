@@ -15,9 +15,9 @@ export default function Layout({ children }) {
         <link rel="icon" href="/images/favicon.ico" />
         <title>{PAGE_TITLE}</title>
       </Head>
-      <div className="container">
+      <div className="max-w-[800px] min-h-screen pt-16 m-auto flex flex-col">
         <NavBar />
-        <main className="main">{children}</main>
+        <main className="p-6 flex flex-col grow">{children}</main>
         <Footer />
       </div>
     </>

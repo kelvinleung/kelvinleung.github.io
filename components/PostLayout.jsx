@@ -7,12 +7,16 @@ export default function PostLayout({ meta, children }) {
       <Head>
         <title>{meta.title}</title>
       </Head>
-      <article className="post-container">
-        <div className="post-title-container">
-          <h1 className="post-title">{meta.title}</h1>
-          <p className="post-date">{meta.date}</p>
+      <article>
+        <div className="mt-8 mb-16">
+          <h1 className="my-4 text-2xl text-neutral-800 font-bold">
+            {meta.title}
+          </h1>
+          <p className="text-sm text-neutral-400">{meta.date}</p>
         </div>
-        {children}
+        <div className="post-content leading-loose text-neutral-600">
+          {children}
+        </div>
       </article>
     </main>
   );

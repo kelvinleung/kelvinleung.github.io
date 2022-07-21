@@ -1,0 +1,121 @@
+@import url(https://cdn.jsdelivr.net/gh/tonsky/FiraCode@5.2/distr/fira_code.css);
+@import "./prism.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .navbar__menu-item {
+    @apply h-12 px-4 flex items-center rounded-lg text-neutral-400 hover:bg-neutral-50;
+  }
+  .navbar__menu-item.active {
+    @apply text-red-600 font-bold;
+  }
+  .post-content a {
+    @apply inline-block relative text-red-600 border-b-2 border-red-600 hover:bg-red-50;
+  }
+  .post-content h1,
+  .post-content h2,
+  .post-content h3,
+  .post-content h4,
+  .post-content h5,
+  .post-content h6 {
+    @apply mt-16 mb-8 text-neutral-800 font-bold;
+  }
+  .post-content h1 {
+    @apply text-2xl;
+  }
+  .post-content h2 {
+    @apply text-xl;
+  }
+  .post-content h3 {
+    @apply text-lg;
+  }
+  .post-content p {
+    @apply my-4;
+  }
+  .post-content code {
+    @apply px-2 py-1 mx-1 bg-neutral-100 font-bold italic rounded-sm;
+  }
+  .post-content strong {
+    @apply text-neutral-800 font-bold;
+  }
+  .post-content blockquote {
+    @apply relative p-8 my-8 text-neutral-400 italic;
+  }
+  .post-content blockquote::before,
+  .post-content blockquote::after {
+    content: "";
+    @apply w-8 h-8 absolute;
+  }
+  .post-content blockquote::before {
+    @apply left-0 top-0 border-t-4 border-l-4 border-neutral-200;
+  }
+  .post-content blockquote::after {
+    @apply right-0 bottom-0 border-b-4 border-r-4 border-neutral-200;
+  }
+  .post-content > ol,
+  .post-content > ul {
+    @apply my-8;
+  }
+  .post-content > ol li,
+  .post-content > ul li {
+    @apply ml-8;
+  }
+  .post-content > ol {
+    @apply list-disc;
+  }
+  .post-content > ul {
+    @apply list-decimal;
+  }
+  .code-block-button {
+    @apply w-3 h-3 m-0 rounded-full;
+  }
+  .code-block-line-number {
+    @apply sticky left-0 inline-block bg-[#282c34] text-right w-[calc(2rem+2ch)] px-4 select-none;
+  }
+  .code-block-line-number::after {
+    content: "";
+    @apply absolute w-full h-full left-0 top-0 z-0;
+  }
+}
+
+.token-line {
+  display: block;
+  padding: 0 1rem 0 0;
+}
+.token-line.highlight {
+  position: relative;
+}
+.token-line.highlight,
+.token-line.highlight .code-block-line-number::after {
+  background-color: rgba(252, 187, 64, 0.1);
+}
+.token-line.highlight .code-block-line-number {
+  color: #fff;
+}
+.token-line.highlight .code-block-line-number::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0.25rem;
+  background-color: #fcbb40;
+  z-index: 10;
+}
+.token-line.add,
+.token-line.add .code-block-line-number::after {
+  background-color: rgba(51, 198, 72, 0.1);
+}
+.token-line.add .code-block-line-number {
+  color: #33c648;
+}
+.token-line.del,
+.token-line.del .code-block-line-number::after {
+  background-color: rgba(252, 96, 93, 0.1);
+}
+.token-line.del .code-block-line-number {
+  color: #fc605d;
+}
