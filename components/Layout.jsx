@@ -2,7 +2,7 @@ import Head from "next/head";
 import NavBar from "./NavBar";
 import Footer from "./Footer";
 
-const PAGE_TITLE = "Kelvin's Blog";
+const PAGE_TITLE = "般若阁";
 const PAGE_DESCRIPTION = "Kelvin's blog";
 
 export default function Layout({ children }) {

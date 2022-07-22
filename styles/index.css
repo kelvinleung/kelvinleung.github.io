@@ -13,7 +13,7 @@
     @apply text-red-600 font-bold;
   }
   .post-content a {
-    @apply inline-block relative text-red-600 border-b-2 border-red-600 hover:bg-red-50;
+    @apply inline-block relative text-red-600 border-b border-red-600 hover:bg-red-50;
   }
   .post-content h1,
   .post-content h2,
@@ -118,4 +118,35 @@
 }
 .token-line.del .code-block-line-number {
   color: #fc605d;
+}
+
+.index__description-text {
+  animation: show-text 1s;
+  opacity: 0;
+}
+.index__description-text.animation-end {
+  opacity: 1;
+}
+.index__list {
+  animation: show-list 1s;
+}
+
+@keyframes show-text {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes show-list {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
