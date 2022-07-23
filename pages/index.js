@@ -1,9 +1,9 @@
 import { useState } from "react";
-import PostList from "components/PostList";
+import IndexPostList from "components/IndexPostList";
 import { getAllPosts } from "lib/posts";
 
 export async function getStaticProps() {
-  const postsData = getAllPosts();
+  const postsData = getAllPosts("all", 2);
   return {
     props: {
       postsData,
@@ -40,7 +40,7 @@ export default function Home({ postsData }) {
     <div className="grow flex flex-col">
       <div
         className={`text-2xl text-neutral-600 leading-loose flex flex-col justify-center ${
-          textEnd ? "grow-0 py-16 text-base text-neutral-400" : "grow"
+          textEnd ? "grow-0 pt-16 pb-32 text-base text-neutral-400" : "grow"
         }`}
         style={{ transition: "all 1s" }}
         onTransitionEnd={() => setShowList(true)}
@@ -57,8 +57,16 @@ export default function Home({ postsData }) {
         </Paragraph>
       </div>
       {showList && (
-        <div className="index__list">
-          <PostList postsData={postsData} />
+        <div className="index__content">
+          <div>
+            <h2 className="mb-8 text-xl text-neutral-800 font-bold">
+              呓语连篇
+            </h2>
+            <IndexPostList postsData={postsData} />
+            <button className="px-6 py-3 mt-8 bg-neutral-50 text-neutral-400 text-sm rounded-md">
+              查看所有
+            </button>
+          </div>
         </div>
       )}
     </div>

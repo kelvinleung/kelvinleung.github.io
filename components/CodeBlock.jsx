@@ -38,9 +38,9 @@ const CodeBlock = ({ children }) => {
       theme={undefined}
     >
       {({ className, style, tokens, getLineProps, getTokenProps }) => (
-        <div className="my-8 rounded-2xl">
-          <div className="relative px-4 py-2 rounded-tl-2xl rounded-tr-2xl text-sm font-bold text-white text-center bg-[#282c34]">
-            <ul className="absolute left-0 top-0 h-full flex items-center gap-2 px-4 m-0 list-none">
+        <div className="my-8 rounded-2xl overflow-hidden bg-[#282c34]">
+          <div className="relative px-4 py-2 text-sm font-bold text-white text-center">
+            <ul className="absolute inset-y-0 left-0 flex items-center gap-2 px-4 m-0 list-none">
               <li className="code-block-button bg-[#fc605d]"></li>
               <li className="code-block-button bg-[#fcbb40]"></li>
               <li className="code-block-button bg-[#33c648]"></li>
