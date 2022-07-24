@@ -1,10 +1,8 @@
-import fs from "fs";
-import path from "path";
 import { bundleMDX } from "mdx-bundler";
 import { getMDXComponent } from "mdx-bundler/client";
 import { getCodeMeta } from "lib/syntax";
 import PostLayout from "components/PostLayout";
-import { postsDirectory, getAllPosts } from "lib/posts";
+import { getAllPosts, getPostDataById } from "lib/content";
 import components from "components/MDXComponents";
 
 export async function getStaticPaths() {
@@ -18,11 +16,10 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps({ params }) {
-  const filePath = path.join(postsDirectory, `${params.id}.mdx`);
-  const fileContent = fs.readFileSync(filePath, "utf-8");
+  const postData = getPostDataById(params.id);
 
   const { code, frontmatter } = await bundleMDX({
-    source: fileContent,
+    source: postData,
     mdxOptions(options) {
       options.rehypePlugins = [...(options.rehypePlugins ?? []), getCodeMeta];
       return options;

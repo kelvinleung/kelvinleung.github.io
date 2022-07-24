@@ -9,4 +9,13 @@ module.exports = withOptimizedImages({
     disableStaticImages: true,
   },
   assetPrefix: isProd ? "/kelvinleung.github.io/" : "",
+  async redirects() {
+    return [
+      {
+        source: "/posts/:type",
+        destination: "/posts/:type/1",
+        permanent: true,
+      },
+    ];
+  },
 });

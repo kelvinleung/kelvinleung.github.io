@@ -1,9 +1,9 @@
 import { useState } from "react";
 import IndexPostList from "components/IndexPostList";
-import { getAllPosts } from "lib/posts";
+import { getIndexPosts } from "lib/content";
 
 export async function getStaticProps() {
-  const postsData = getAllPosts("all", 2);
+  const postsData = getIndexPosts();
   return {
     props: {
       postsData,

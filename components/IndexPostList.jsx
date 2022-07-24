@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getPostTypeName } from "common/constant";
+import { getPostTypeId } from "common/utils";
 
 export default function IndexPostList({ postsData }) {
   return (
@@ -10,7 +10,7 @@ export default function IndexPostList({ postsData }) {
             <span>{date}</span>
             <Link href={`/posts/${type}`}>
               <a className="px-4 py-2 rounded-lg bg-neutral-50 hover:text-red-600 hover:bg-red-50">
-                {getPostTypeName(type)}
+                {getPostTypeId(type)}
               </a>
             </Link>
           </div>
