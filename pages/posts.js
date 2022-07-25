@@ -24,13 +24,10 @@ export default function Posts({ postsData, pageCount }) {
     <div>
       <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {POST_TYPES.map((type) => (
-          <li
-            key={type.id}
-            className="p-4 relative bg-neutral-50 rounded-lg hover:bg-red-50 group"
-          >
+          <li key={type.id}>
             <Link href={`/posts/${type.id}`}>
-              <a className="block">
-                <p className="absolute top-0 left-0 text-neutral-200/50 text-3xl group-hover:text-red-100">
+              <a className="p-4 block relative bg-neutral-50 rounded-lg hover:bg-red-50 group">
+                <p className="absolute top-0 right-0 text-neutral-200/50 text-2xl group-hover:text-red-100">
                   {type.id.toUpperCase()}
                 </p>
                 <p className="relative group-hover:text-red-600">{type.name}</p>

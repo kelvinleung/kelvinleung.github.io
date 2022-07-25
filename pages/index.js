@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Link from "next/link";
 import IndexPostList from "components/IndexPostList";
 import { getIndexPosts } from "lib/content";
 
@@ -59,13 +60,15 @@ export default function Home({ postsData }) {
       {showList && (
         <div className="index__content">
           <div>
-            <h2 className="mb-8 text-xl text-neutral-800 font-bold">
-              呓语连篇
-            </h2>
+            <div className="mb-8 flex justify-between items-center">
+              <h2 className="text-xl text-neutral-800 font-bold">呓语连篇</h2>
+              <Link href="/posts">
+                <a className="px-6 py-3 hover:bg-neutral-50 text-neutral-400 text-sm rounded-md">
+                  查看所有
+                </a>
+              </Link>
+            </div>
             <IndexPostList postsData={postsData} />
-            <button className="px-6 py-3 mt-8 bg-neutral-50 text-neutral-400 text-sm rounded-md">
-              查看所有
-            </button>
           </div>
         </div>
       )}
