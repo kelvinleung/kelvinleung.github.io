@@ -40,10 +40,10 @@ export default function Home({ postsData }) {
   return (
     <div className="grow flex flex-col">
       <div
-        className={`text-2xl text-neutral-600 leading-loose flex flex-col justify-center ${
-          textEnd ? "grow-0 pt-16 pb-32 text-base text-neutral-400" : "grow"
+        className={`text-2xl text-neutral-600 leading-loose flex flex-col justify-center grow${
+          textEnd ? " grow-0 pt-16 pb-32 text-base text-neutral-400" : ""
         }`}
-        style={{ transition: "all 1s" }}
+        style={textEnd ? { transition: "all 1s" } : null}
         onTransitionEnd={() => setShowList(true)}
       >
         <Paragraph>
